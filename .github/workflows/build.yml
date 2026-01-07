@@ -1,0 +1,34 @@
+name: Build phtunnel1
+
+on:
+  workflow_dispatch: # 支持手动触发编译
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare Environment
+        run: |
+          sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+      - name: Download SDK
+        run: |
+          # 请根据你的路由器架构更换下方的 SDK 链接
+          git clone -b openwrt-24.10 --single-branch --filter=blob:none https://github.com/immortalwrt/immortalwrt
+          mv immortalwrt sdk
+
+      - name: Build Package
+        run: |
+          cd sdk
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          ln -s ../../phtunnel1 package/phtunnel1
+          make package/phtunnel1/compile V=s
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: phtunnel1-ipk
+          path: sdk/bin/packages/*/base/*.ipk
