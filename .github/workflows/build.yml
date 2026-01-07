@@ -15,9 +15,14 @@ jobs:
           sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
       - name: Download SDK
         run: |
-          # 请根据你的路由器架构更换下方的 SDK 链接
-          git clone -b openwrt-24.10 --single-branch --filter=blob:none https://github.com/immortalwrt/immortalwrt
-          mv immortalwrt sdk
+          # 这里以 ImmortalWrt 24.10 x86_64 为例
+          # 如果你的路由器不是这个架构，请更换下方 URL
+          SDK_URL="https://downloads.immortalwrt.org/releases/24.10.0/targets/x86/64/immortalwrt-sdk-24.10.0-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
+          wget $SDK_URL -O sdk.tar.xz
+          mkdir sdk
+          tar -xJf sdk.tar.xz -C sdk --strip-components=1
+          
+          # 克隆你的插件源码
           git clone https://github.com/oooopera/phtunnel1.git
           
 
@@ -31,14 +36,6 @@ jobs:
           mv ../phtunnel1/phtunnel package/phtunnel
 
           make defconfig
-          # 【核心修复】创建占位符文件，绕过 libc 拷贝错误
-          # 找到 toolchain 目录的实际名称
-          TOOLCHAIN_DIR=$(ls staging_dir | grep toolchain-x86_64)
-          mkdir -p staging_dir/$TOOLCHAIN_DIR/lib/
-          touch staging_dir/$TOOLCHAIN_DIR/lib/ld-musl-x86_64.so.1
-          
-          # 强制在配置中取消 libc 的重编（SDK 本身就有）
-          sed -i 's/CONFIG_PACKAGE_libc=y/# CONFIG_PACKAGE_libc is not set/
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
           make defconfig
