@@ -1,7 +1,7 @@
 name: Build phtunnel1
 
 on:
-  workflow_dispatch: # 支持手动触发编译
+  workflow_dispatch: # 手动触发
 
 jobs:
   build:
@@ -13,36 +13,47 @@ jobs:
       - name: Prepare Environment
         run: |
           sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+          # 补充安装 zstd，因为 SDK 使用 .tar.zst 格式
+          sudo apt-get update
+          sudo apt-get install -y zstd
+
       - name: Download SDK
         run: |
-          # 这里以 ImmortalWrt 24.10 x86_64 为例
-          # 如果你的路由器不是这个架构，请更换下方 URL
-          SDK_URL="https://downloads.immortalwrt.org/releases/24.10.0/targets/x86/64/immortalwrt-sdk-24.10.0-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
-          wget $SDK_URL -O sdk.tar.xz
+          # 24.10.0 x86_64 SDK URL
+          SDK_URL="https://downloads.immortalwrt.org/releases/24.10.0/targets/x86/64/immortalwrt-sdk-24.10.0-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
+          curl -L $SDK_URL -o sdk.tar.zst
           mkdir sdk
-          tar -xJf sdk.tar.xz -C sdk --strip-components=1
+          # 使用 zstd 解压并去掉第一层目录
+          tar -I zstd -xf sdk.tar.zst -C sdk --strip-components=1
           
-          # 克隆你的插件源码
-          git clone https://github.com/oooopera/phtunnel1.git
-          
+          # 克隆插件源码
+          git clone https://github.com/oooopera/phtunnel1.git source_tmp
 
       - name: Build Package
         run: |
           cd sdk
+          
+          # 更新 feeds
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-           
-          mv ../phtunnel1/luci-app-phtunnel package/luci-app-phtunnel
-          mv ../phtunnel1/phtunnel package/phtunnel
 
+          # 将源码移动到 SDK 的 package 目录
+          cp -r ../source_tmp/luci-app-phtunnel package/
+          cp -r ../source_tmp/phtunnel package/
+
+          # 配置编译选项
           make defconfig
-          echo "CONFIG_PACKAGE_phtunnel=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
-          make defconfig
-          make package/phtunnel/compile V=s IGNORE_ERRORS=1
-          make package/luci-app-phtunnel/compile V=s IGNORE_ERRORS=1
+          sed -i 's/CONFIG_PACKAGE_phtunnel=m/CONFIG_PACKAGE_phtunnel=y/' .config
+          sed -i 's/CONFIG_PACKAGE_luci-app-phtunnel=m/CONFIG_PACKAGE_luci-app-phtunnel=y/' .config
+          
+          # 编译单个包及其依赖
+          make package/phtunnel/compile V=s
+          make package/luci-app-phtunnel/compile V=s
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: phtunnel1-ipk
-          path: sdk/bin/packages/*/base/*.ipk
+          path: |
+            sdk/bin/packages/x86_64/base/phtunnel.ipk
+            sdk/bin/packages/x86_64/base/luci-app-phtunnel.ipk
