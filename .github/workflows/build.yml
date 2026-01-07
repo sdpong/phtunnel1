@@ -1,11 +1,14 @@
 name: Build phtunnel1
 
 on:
-  workflow_dispatch: # 手动触发
+  workflow_dispatch: # 手动触发编译
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 赋予发布 Release 的权限
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -13,17 +16,16 @@ jobs:
       - name: Prepare Environment
         run: |
           sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
-          # 补充安装 zstd，因为 SDK 使用 .tar.zst 格式
+          # 2026年编译环境补充：SDK 使用 zstd 压缩，需手动安装
           sudo apt-get update
           sudo apt-get install -y zstd
 
       - name: Download SDK
         run: |
-          # 24.10.0 x86_64 SDK URL
+          # ImmortalWrt 24.10.0 x86_64 SDK
           SDK_URL="https://downloads.immortalwrt.org/releases/24.10.0/targets/x86/64/immortalwrt-sdk-24.10.0-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
           curl -L $SDK_URL -o sdk.tar.zst
           mkdir sdk
-          # 使用 zstd 解压并去掉第一层目录
           tar -I zstd -xf sdk.tar.zst -C sdk --strip-components=1
           
           # 克隆插件源码
@@ -32,32 +34,50 @@ jobs:
       - name: Build Package
         run: |
           cd sdk
-          
-          # 更新 feeds
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-
-          # 将源码移动到 SDK 的 package 目录
+          
+          # 移动源码到 SDK package 目录
           cp -r ../source_tmp/luci-app-phtunnel package/
           cp -r ../source_tmp/phtunnel package/
-
-          # 配置编译选项
+          
+          # 配置并编译
           make defconfig
           sed -i 's/CONFIG_PACKAGE_phtunnel=m/CONFIG_PACKAGE_phtunnel=y/' .config
           sed -i 's/CONFIG_PACKAGE_luci-app-phtunnel=m/CONFIG_PACKAGE_luci-app-phtunnel=y/' .config
           
-          # 编译单个包及其依赖
           make package/phtunnel/compile V=s
           make package/luci-app-phtunnel/compile V=s
+
+      - name: Prepare Artifacts
+        id: prepare
+        run: |
+          mkdir -p publish
+          # 2026.01.07 提示：使用 find 确保能抓取到带后缀的文件名
+          find sdk/bin/packages/ -name "phtunnel*.ipk" -exec cp {} publish/ \;
+          find sdk/bin/packages/ -name "luci-app-phtunnel*.ipk" -exec cp {} publish/ \;
+          
+          # 设置时间戳标签供 Release 使用
+          echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: phtunnel-release
-          # 使用管道符号 '|' 来支持多行路径，并使用 '*' 匹配完整文件名
-          path: |
-            sdk/bin/packages/x86_64/base/phtunnel*.ipk
-            sdk/bin/packages/x86_64/base/luci-app-phtunnel*.ipk
-          if-no-files-found: warn
-          compression-level: 6
-          overwrite: yes
+          name: phtunnel1-ipk
+          path: publish/*.ipk
+          if-no-files-found: error
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.prepare.outputs.release_tag }}
+          name: Release phtunnel1 ${{ steps.prepare.outputs.release_tag }}
+          files: publish/*.ipk
+          body: |
+            Build Date: 2026.01.07
+            Target: ImmortalWrt 24.10 x86_64
+            Included Packages:
+            - phtunnel
+            - luci-app-phtunnel
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
