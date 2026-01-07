@@ -53,7 +53,11 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: phtunnel1-ipk
+          name: phtunnel-release
+          # 使用管道符号 '|' 来支持多行路径，并使用 '*' 匹配完整文件名
           path: |
-            sdk/bin/packages/x86_64/base/phtunnel.ipk
-            sdk/bin/packages/x86_64/base/luci-app-phtunnel.ipk
+            sdk/bin/packages/x86_64/base/phtunnel*.ipk
+            sdk/bin/packages/x86_64/base/luci-app-phtunnel*.ipk
+          if-no-files-found: warn
+          compression-level: 6
+          overwrite: yes
