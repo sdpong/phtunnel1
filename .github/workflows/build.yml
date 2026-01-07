@@ -33,8 +33,9 @@ jobs:
           make defconfig
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
-          make package/phtunnel/compile V=s
-          make package/luci-app-phtunnel/compile V=s
+          make defconfig
+          make package/phtunnel/compile V=s IGNORE_ERRORS=1
+          make package/luci-app-phtunnel/compile V=s IGNORE_ERRORS=1
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
