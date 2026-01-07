@@ -24,6 +24,7 @@ jobs:
           cd sdk
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+          make defconfig
           ln -s ../../phtunnel1 package/phtunnel1
           make package/phtunnel1/compile V=s
 
