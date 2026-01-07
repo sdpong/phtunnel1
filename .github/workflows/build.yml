@@ -18,14 +18,17 @@ jobs:
           # 请根据你的路由器架构更换下方的 SDK 链接
           git clone -b openwrt-24.10 --single-branch --filter=blob:none https://github.com/immortalwrt/immortalwrt
           mv immortalwrt sdk
+          git clone https://github.com/oooopera/phtunnel1.git
+          
 
       - name: Build Package
         run: |
           cd sdk
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          ln -s ../luci-app-phtunnel package/luci-app-phtunnel
-          ln -s ../phtunnel package/phtunnel
+           
+          mv ../phtunnel1/luci-app-phtunnel package/luci-app-phtunnel
+          mv ../phtunnel1/phtunnel package/phtunnel
 
           make defconfig
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
