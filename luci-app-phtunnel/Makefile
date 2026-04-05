@@ -117,16 +117,16 @@ endef
 
 # OpenWrt 25 LuCI 兼容性处理
 define Package/$(PKG_NAME)/postinst
-#!/bin/sh
-[ -n "" ] || exit 0
+  #!/bin/sh
+  [ -n "" ] || exit 0
+  
+  # 清理 LuCI 缓存
+  rm -rf /tmp/luci-*
+  /etc/init.d/rpcd restart >/dev/null 2>&1 || true
+  /etc/init.d/uhttpd restart >/dev/null 2>&1 || true
 
-# 清理 LuCI 缓存
-rm -rf /tmp/luci-*
-/etc/init.d/rpcd restart >/dev/null 2>&1 || true
-/etc/init.d/uhttpd restart >/dev/null 2>&1 || true
-
-echo "LuCI PHTunnel 界面已安装，请刷新浏览器页面"
-exit 0
+  echo "LuCI PHTunnel 界面已安装，请刷新浏览器页面"
+  exit 0
 endef
 
 # 兼容性：同时支持 IPK 和 APK 的调用
