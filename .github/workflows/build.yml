@@ -35,22 +35,27 @@ jobs:
           case "${{ inputs.target }}" in
             x86_64)
               ARCH="x86"
+              SDK_ARCH="x86-64"
               BINARY_ARCH="64"
               ;;
             aarch64)
               ARCH="aarch64_cortex-a53"
+              SDK_ARCH="aarch64_cortex-a53"
               BINARY_ARCH="cortex-a53"
               ;;
             armv7)
               ARCH="arm_cortex-a7_neon-vfpv4"
+              SDK_ARCH="arm_cortex-a7_neon-vfpv4"
               BINARY_ARCH="cortex-a7-neon-vfpv4"
               ;;
             mips)
               ARCH="ath79"
+              SDK_ARCH="ath79"
               BINARY_ARCH="generic"
               ;;
             mipsel)
               ARCH="ramips"
+              SDK_ARCH="ramips"
               BINARY_ARCH="mt7620"
               ;;
             *)
@@ -59,7 +64,7 @@ jobs:
               ;;
           esac
 
-          SDK_URL="https://downloads.openwrt.org/releases/23.05.5/targets/$ARCH/$BINARY_ARCH/openwrt-sdk-23.05.5-${ARCH}_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
+          SDK_URL="https://downloads.openwrt.org/releases/23.05.5/targets/$ARCH/$BINARY_ARCH/openwrt-sdk-23.05.5-${SDK_ARCH}_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
           echo "Downloading SDK from: $SDK_URL"
           curl -L "$SDK_URL" -o sdk.tar.xz
           tar -xf sdk.tar.xz
