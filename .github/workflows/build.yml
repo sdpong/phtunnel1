@@ -126,8 +126,7 @@ jobs:
         with:
           tag_name: v1.0.0-1
           name: PHTunnel v1.0.0-1 for OpenWrt 25.12.x
-          files: release/*
-.{apk,ipk}
+          files: release/*.{apk,ipk}
           body: |
             ## PHTunnel v1.0.0-1
 
