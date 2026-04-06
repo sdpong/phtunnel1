@@ -56,7 +56,7 @@ jobs:
 
           # OpenWrt 24.10.6 SDK (latest stable SDK)
           # Note: Packages built with 24.10.6 SDK are compatible with OpenWrt 23.05.x, 24.10.x and 25.12.x
-          SDK_URL="https://downloads.openwrt.org/releases/24.10.6/targets/$ARCH/$BINARY_ARCH/openwrt-sdk-24.10.6-$ARCH_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
+          SDK_URL="https://downloads.openwrt.org/releases/24.10.6/targets/$ARCH/$BINARY_ARCH/openwrt-sdk-24.10.6-${ARCH}_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
           echo "Downloading SDK from: $SDK_URL"
           curl -L "$SDK_URL" -o sdk.tar.xz
           tar -xf sdk.tar.xz
