@@ -3,58 +3,27 @@ include $(TOPDIR)/rules.mk
 # OpenWrt 25.12.x APK 包变量
 PKG_NAME:=phtunnel
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=2
+PKG_RELEASE:=1
 
-include $(INCLUDE_DIR)/target.mk
-
-# 架构检测逻辑
-ifeq ($(ARCH),arm)
-  ifneq ($(findstring $(CPU_SUBTYPE), neon neon-vfpv4 vfpv3),)
-    PKG_ARCH_PHT:=arm_$(CPU_TYPE)_$(CPU_SUBTYPE)-$(LIBC)-unknown
-  else ifneq ($(findstring $(CPU_TYPE), cortex-a9),)
-    PKG_ARCH_PHT:=arm_cortex-a9-$(LIBC)-unknown
-  else
-    PKG_ARCH_PHT:=arm_cortex-a7-$(LIBC)-unknown
-  endif
-endif
-
-ifeq ($(ARCH),aarch64)
-  ifneq ($(findstring $(CPU_TYPE), cortex-a53 cortex-a72),)
-    PKG_ARCH_PHT:=aarch64_$(CPU_TYPE)-$(LIBC)-unknown
-  else
-    PKG_ARCH_PHT:=aarch64_generic-$(LIBC)-unknown
-  endif
-endif
-
-ifeq ($(ARCH),mips)
-    PKG_ARCH_PHT:=mips_24kc-$(LIBC)-unknown
-endif
-
-ifeq ($(ARCH),mipsel)
-  ifneq ($(findstring $(CPU_TYPE), 24kec 74kc 1004kc),)
-    PKG_ARCH_PHT:=$(ARCH)_$(CPU_TYPE)-$(LIBC)-unknown
-  else
-    PKG_ARCH_PHT:=mipsel_24kc-$(LIBC)-unknown
-  endif
-endif
-
-ifeq ($(BOARD),x86)
-  ifeq ($(ARCH),x86_64)
-    PKG_ARCH_PHT:=x86_64-$(LIBC)-unknown
-  else ifeq ($(CPU_TYPE),pentium4)
-    PKG_ARCH_PHT:=i386_pentium4-$(LIBC)-unknown
-  else
-    PKG_ARCH_PHT:=i386_pentium-mmx-$(LIBC)-unknown
-  endif
-endif
+# APK 包名和版本
+APK_NAME:=$(PKG_NAME)
+APK_VERSION:=$(PKG_VERSION)-$(PKG_RELEASE)
+APK_ARCH:=$(ARCH)
 
 # 源代码信息
 PKG_SOURCE:=phtunnel
-PKG_SOURCE_URL:=https://mirrors.oray.com/orayos/packages/$(PKG_NAME)/$(PKG_ARCH_PHT)/$(PKG_VERSION)/bin
+PKG_SOURCE_URL:=https://mirrors.oray.com/orayos/packages/$(PKG_NAME)/$(PKG_VERSION)/bin
 PKG_HASH:=skip
 PKG_FLAGS:=nonshared
 PKG_MAINTAINER:=Oray <developer@oray.com>
 PKG_LICENSE:=Proprietary
+
+# APK 元数据
+APK_DESCRIPTION:=PHTunnel core daemon for OpenWrt 25.12.x+
+APK_URL:=https://hsk.oray.com/
+APK_LICENSE:=Proprietary
+APK_MAINTAINER:=Oray <developer@oray.com>
+APK_ORIGIN:=openwrt
 
 # 包含 APK 构建规则
 include $(INCLUDE_DIR)/apk.mk
@@ -80,7 +49,7 @@ endef
 
 define Build/Prepare
     mkdir -p $(PKG_BUILD_DIR)
-    mv $(DL_DIR)/$(PKG_SOURCE) $(PKG_BUILD_DIR)
+    $(DL_DIR)/$(PKG_SOURCE) $(PKG_BUILD_DIR)
     chmod +x $(PKG_BUILD_DIR)/$(PKG_SOURCE)
 endef
 
@@ -103,7 +72,6 @@ endef
 
 # APK 构建目标
 define Build/APK
-  # 生成 .PKGINFO 文件
   $(call Build/WritePKGINFO,$(APK_BUILD_DIR)/.PKGINFO)
 
   # 添加依赖
@@ -112,36 +80,36 @@ define Build/APK
   echo "depend = librt" >> $(APK_BUILD_DIR)/.PKGINFO
 
   # 创建 .post-install 脚本
-  cat > $(APK_BUILD_DIR)/.post-install << 'EOF'
-#!/bin/sh
-set -e
-
-echo "PHTunnel 安装完成"
-
-# 启用服务
-if [ -f /etc/init.d/phtunnel ]; then
-    /etc/init.d/phtunnel enable
-    echo "PHTunnel 服务已启用"
-fi
-
-exit 0
-EOF
+  echo '#!/bin/sh' > $(APK_BUILD_DIR)/.post-install
+  echo 'set -e' >> $(APK_BUILD_DIR)/.post-install
+  echo '' >> $(APK_BUILD_DIR)/.post-install
+  echo 'echo "PHTunnel 安装完成"' >> $(APK_BUILD_DIR)/.post-install
+  echo '' >> $(APK_BUILD_DIR)/.post-install
+  echo '# 启用服务' >> $(APK_BUILD_DIR)/.post-install
+  echo 'if [ -f /etc/init.d/phtunnel ]; then' >> $(APK_BUILD_DIR)/.post-install
+  echo '    /etc/init.d/phtunnel enable' >> $(APK_BUILD_DIR)/.post-install
+  echo '    echo "PHTunnel 服务已启用"' >> $(APK_BUILD_DIR)/.post-install
+  echo 'fi' >> $(APK_BUILD_DIR)/.post-install
+  echo '' >> $(APK_BUILD_DIR)/.post-install
+  echo 'exit 0' >> $(APK_BUILD_DIR)/.post-install
   chmod +x $(APK_BUILD_DIR)/.post-install
 
   # 创建 .pre-install 脚本
-  cat > $(APK_BUILD_DIR)/.pre-install << 'EOF'
-#!/bin/sh
-# 停止运行中的服务
-if [ -f /etc/init.d/phtunnel ]; then
-    /etc/init.d/phtunnel stop >/dev/null 2>&1 || true
-fi
-exit 0
-EOF
+  echo '#!/bin/sh' > $(APK_BUILD_DIR)/.pre-install
+  echo '# 停止运行中的服务' >> $(APK_BUILD_DIR)/.pre-install
+  echo 'if [ -f /etc/init.d/phtunnel ]; then' >> $(APK_BUILD_DIR)/.pre-install
+  echo '    /etc/init.d/phtunnel stop >/dev/null 2>&1 || true' >> $(APK_BUILD_DIR)/.pre-install
+  echo 'fi' >> $(APK_BUILD_DIR)/.pre-install
+  echo 'exit 0' >> $(APK_BUILD_DIR)/.pre-install
   chmod +x $(APK_BUILD_DIR)/.pre-install
 
-  # 打包
-  $(TAR) -czf $(PKG_BUILD_DIR)/$(PKG_NAME)-$(APK_VERSION).apk \
-    -C $(APK_BUILD_DIR) .
+  # 创建 APK 包
+  mkdir -p $(APK_INSTALL_DIR)
+  $(call Package/phtunnel/install,$(APK_INSTALL_DIR))
+
+  $(TAR) -czf $(PKG_BUILD_DIR)/$(APK_NAME)-$(APK_VERSION)_$(APK_ARCH).apk \
+    -C $(APK_BUILD_DIR) .PKGINFO .pre-install .post-install \
+    -C $(APK_INSTALL_DIR) .
 endef
 
 $(eval $(call BuildPackage,phtunnel))
