@@ -32,10 +32,10 @@ jobs:
 
       - name: Download SDK
         run: |
-          # Map inputs to architecture values (for OpenWrt 24.10.6 SDK)
+           # Map inputs to architecture values (for OpenWrt 23.05.5 SDK)
           TARGET="${{ inputs.target }}"
           if [ "$TARGET" = "x86_64" ]; then
-            ARCH="x86"
+            ARCH="x86-64"
             BINARY_ARCH="64"
           elif [ "$TARGET" = "aarch64" ]; then
             ARCH="aarch64_cortex-a53"
@@ -54,8 +54,8 @@ jobs:
             exit 1
           fi
 
-          # OpenWrt 23.05.5 SDK (latest with SDK available)
-          # Note: Packages built with 23.05.5 SDK are compatible with OpenWrt 23.05.x and above
+           # OpenWrt 23.05.5 SDK (latest with SDK available)
+          # Note: Packages built with 23.05.5 SDK are compatible with OpenWrt 23.05.x, 24.10.x and 25.12.x
           SDK_URL="https://downloads.openwrt.org/releases/23.05.5/targets/$ARCH/$BINARY_ARCH/openwrt-sdk-23.05.5-${ARCH}_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
           echo "Downloading SDK from: $SDK_URL"
           curl -L "$SDK_URL" -o sdk.tar.xz
@@ -68,9 +68,9 @@ jobs:
         run: |
           cd sdk
 
-          # Update feeds (for 24.10.6)
-          echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-24.10" >> feeds.conf.default
-          echo "src-git packages https://git.openwrt.org/feed/packages.git;openwrt-24.10" >> feeds.conf.default
+           # Update feeds (for 23.05.5)
+          echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-23.05" >> feeds.conf.default
+          echo "src-git packages https://git.openwrt.org/feed/packages.git;openwrt-23.05" >> feeds.conf.default
 
           ./scripts/feeds update -a
           ./scripts/feeds install -a
