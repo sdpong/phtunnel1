@@ -34,7 +34,7 @@ jobs:
         run: |
           case "${{ inputs.target }}" in
             x86_64)
-              ARCH="x86-64"
+              ARCH="x86"
               BINARY_ARCH="64"
               ;;
             aarch64)
