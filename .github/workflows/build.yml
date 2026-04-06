@@ -80,10 +80,11 @@ jobs:
         run: |
           cd sdk
           
-          echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-23.05" >> feeds.conf.default
-          echo "src-git packages https://git.openwrt.org/feed/packages.git;openwrt-23.05" >> feeds.conf.default
-          
-          ./scripts/feeds update -a
+          if ! grep -q "openwrt-23.05" feeds.conf.default 2>/dev/null; then
+            echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-23.05" >> feeds.conf.default
+            echo "src-git packages https://git.openwrt.org/feed/packages.git;openwrt-23.05" >> feeds.conf.default
+            ./scripts/feeds update -a
+          fi
           ./scripts/feeds install -a
           
           cp -r ../source_tmp/luci-app-phtunnel package/
