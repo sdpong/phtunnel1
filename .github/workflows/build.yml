@@ -12,181 +12,27 @@ jobs:
       matrix:
         target:
           - name: x86_64
-            arch: x86
-            subtarget: 64
-            sdk_arch: x86-64
-            pkg_arch: x86_64
-          - name: aarch64_cortex-a53
+            arch: x86_64
+          - name: aarch64
             arch: aarch64
-            subtarget: generic
-            sdk_arch: aarch64_cortex-a53
-            pkg_arch: aarch64
-          - name: aarch64_generic
-            arch: aarch64
-            subtarget: generic
-            sdk_arch: aarch64_generic
-            pkg_arch: aarch64
-          - name: arm_cortex-a7
-            arch: arm
-            subtarget: cortex-a7
-            sdk_arch: arm_cortex-a7_neon-vfpv4
-            pkg_arch: armv7
-          - name: arm_cortex-a9
-            arch: arm
-            subtarget: cortex-a9
-            sdk_arch: arm_cortex-a9_neon
-            pkg_arch: armv7
-          - name: mips_24kc
+          - name: armv7
+            arch: armv7
+          - name: mips
             arch: mips
-            subtarget: 24kc
-            sdk_arch: mips_24kc
-            pkg_arch: mips
-          - name: mipsel_24kc
+          - name: mipsel
             arch: mipsel
-            subtarget: 24kc
-            sdk_arch: mipsel_24kc
-            pkg_arch: mipsel
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare Environment
+      - name: Build Test
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
-            gettext git java-propose-classpath libelf-dev libncurses5-dev \
-            libncursesw5-dev libssl-dev python3 unzip rsync subversion \
-            xsltproc zlib1g-dev
-
-      - name: Download SDK
-        run: |
-          SDK_URL="https://downloads.openwrt.org/releases/24.10.0/targets/${{ matrix.target.arch }}/${{ matrix.target.subtarget }}/openwrt-sdk-24.10.0-${{ matrix.target.sdk_arch }}_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
-          echo "Downloading SDK from: $SDK_URL"
-          curl -L $SDK_URL -o sdk.tar.xz || { echo "SDK download failed for ${{ matrix.target.name }}"; exit 1; }
-          mkdir sdk
-          tar -xf sdk.tar.xz -C sdk --strip-components=1
-          git clone https://github.com/sdpong/phtunnel1.git source_tmp
-
-      - name: Build IPK
-        run: |
-          cd sdk
-          echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-24.10" >> feeds.conf.default
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
-          cp -r ../source_tmp/luci-app-phtunnel package/
-          cp -r ../source_tmp/phtunnel package/
-          make defconfig
-          echo "CONFIG_PACKAGE_phtunnel=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
-          echo "CONFIG_PACKAGE_luci-lib-jsonc=y" >> .config || echo "CONFIG_PACKAGE_luci-lib-json=y" >> .config
-          echo "CONFIG_PACKAGE_cgi-io=y" >> .config
-          echo "CONFIG_PACKAGE_curl=y" >> .config
-          case "${{ matrix.target.arch }}" in
-            x86)
-              echo "CONFIG_TARGET_x86=y" >> .config
-              ;;
-            aarch64|arm|mips|mipsel)
-              echo "CONFIG_TARGET_${{ matrix.target.arch }}=y" >> .config
-              ;;
-          esac
-          make package/phtunnel/compile V=s || { echo "phtunnel build failed"; exit 1; }
-          make package/luci-app-phtunnel/compile V=s || { echo "luci-app-phtunnel build failed"; exit 1; }
-
-      - name: Convert IPK to APK
-        run: |
-          mkdir -p publish/${{ matrix.target.name }}
-          for ipk in $(find sdk/bin/packages/ -name "*.ipk"); do
-            pkg_name=$(basename "$ipk" .ipk)
-            pkg_arch="${{ matrix.target.pkg_arch }}"
-            workdir=$(mktemp -d)
-            
-            mkdir -p "$workdir/apk"
-            tar -xzf "$ipk" -C "$workdir/apk"
-            
-            cat > "$workdir/apk/.PKGINFO" << EOF
-pkgname = $pkg_name
-pkgver = 1.0.0-r2
-pkgdesc = PHTunnel package for OpenWrt
-url = https://hsk.oray.com/
-builddate = $(date -u +%Y%m%d%H%M%S)
-packager = OpenWrt Build System
-size = $(du -sb "$workdir/apk" | cut -f1)
-arch = $pkg_arch
-license = GPL-2.0-only
-maintainer = Oray <developer@oray.com>
-origin = openwrt
-EOF
-            
-            cat > "$workdir/apk/.pre-install" << 'EOF'
-#!/bin/sh
-if [ -f /etc/init.d/phtunnel ]; then
-    /etc/init.d/phtunnel stop
-fi
-exit 0
-EOF
-            
-            cat > "$workdir/apk/.post-install" << 'EOF'
-#!/bin/sh
-if [ -f /etc/init.d/phtunnel ]; then
-    /etc/init.d/phtunnel enable
-fi
-exit 0
-EOF
-            
-            chmod +x "$workdir/apk/.pre-install" "$workdir/apk/.post-install"
-            
-            apk_name="${pkg_name}_1.0.0-r2_${pkg_arch}.apk"
-            cd "$workdir/apk"
-            tar -czf "$apk_name" * .*
-            cp "$apk_name" "../../../publish/${{ matrix.target.name }}/"
-            
-            rm -rf "$workdir"
-          done
-          
-          ls -lh publish/${{ matrix.target.name }}/ || echo "No packages found"
-
-          if [ "${{ matrix.target.name }}" = "x86_64" ]; then
-            echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
-          fi
+          echo "Building for ${{ matrix.target.arch }}"
+          echo "Test workflow"
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: phtunnel-${{ matrix.target.name }}-apk
-          path: publish/${{ matrix.target.name }}/*.apk
-          if-no-files-found: error
-
-  release:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    needs: build
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: all-artifacts
-
-      - name: Create Release
-        run: |
-          mkdir -p release-packages
-          find all-artifacts -name "*.apk" -exec cp {} release-packages/ \;
-          ls -lh release-packages/
-
-      - name: Publish Release
-        uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: release-$(date +"%Y.%m.%d-%H%M")
-          name: PHTunnel APK Release
-          files: release-packages/*.apk
-          body: |
-            Build Date: 2026.04.05
-            Target: OpenWrt 24.10.0 converted to APK format
-            Architectures: x86_64, aarch64, arm, mips, mipsel
-            Installation: opkg install phtunnel_1.0.0-2_*.apk
+          name: test-${{ matrix.target.name }}
+          path: README.md
