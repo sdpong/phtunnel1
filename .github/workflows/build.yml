@@ -32,37 +32,37 @@ jobs:
 
       - name: Download SDK
         run: |
-          # Map inputs to architecture values
+          # Map inputs to architecture values (for OpenWrt 23.05.5 SDK)
           case "${{ inputs.target }}" in
             x86_64)
               ARCH="x86"
-              SDK_ARCH="x86_64"
+              SDK_ARCH="x86-64"
               PKG_ARCH="x86_64"
-              BINARY_ARCH="x86_64"
+              BINARY_ARCH="64"
               ;;
             aarch64)
-              ARCH="aarch64"
-              SDK_ARCH="aarch64"
+              ARCH="aarch64_cortex-a53"
+              SDK_ARCH="aarch64_cortex-a53"
               PKG_ARCH="aarch64_generic"
-              BINARY_ARCH="aarch64_cortex-a53"
+              BINARY_ARCH="cortex-a53"
               ;;
             armv7)
-              ARCH="arm"
-              SDK_ARCH="arm"
+              ARCH="arm_cortex-a7_neon-vfpv4"
+              SDK_ARCH="arm_cortex-a7_neon-vfpv4"
               PKG_ARCH="armv7"
-              BINARY_ARCH="arm_cortex-a7_neon-vfpv4"
+              BINARY_ARCH="cortex-a7-neon-vfpv4"
               ;;
             mips)
-              ARCH="mips"
-              SDK_ARCH="mips"
+              ARCH="ath79"
+              SDK_ARCH="ath79"
               PKG_ARCH="mips_24kc"
-              BINARY_ARCH="mips_24kc"
+              BINARY_ARCH="generic"
               ;;
             mipsel)
-              ARCH="mipsel"
-              SDK_ARCH="mipsel"
+              ARCH="ramips"
+              SDK_ARCH="ramips"
               PKG_ARCH="mipsel_24kc"
-              BINARY_ARCH="mipsel_24kc"
+              BINARY_ARCH="mt7620"
               ;;
             *)
               echo "Unsupported architecture: ${{ inputs.target }}"
@@ -70,8 +70,9 @@ jobs:
               ;;
           esac
 
-          # OpenWrt 25.12.1 SDK
-          SDK_URL="https://downloads.openwrt.org/releases/25.12.1/targets/$ARCH/$BINARY_ARCH/openwrt-sdk-25.12.1-$SDK_ARCH_gcc-14.2.1_musl.Linux-x86_64.tar.xz"
+          # OpenWrt 23.05.5 SDK (latest stable with SDK available)
+          # Note: Building with 23.05.5 SDK, packages compatible with OpenWrt 23.05.x and 25.12.x
+          SDK_URL="https://downloads.openwrt.org/releases/23.05.5/targets/$ARCH/$BINARY_ARCH/openwrt-sdk-23.05.5-$SDK_ARCH_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
           echo "Downloading SDK from: $SDK_URL"
           curl -L "$SDK_URL" -o sdk.tar.xz
           tar -xf sdk.tar.xz
@@ -83,9 +84,9 @@ jobs:
         run: |
           cd sdk
 
-          # Update feeds
-          echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-25.12" >> feeds.conf.default
-          echo "src-git packages https://git.openwrt.org/feed/packages.git;openwrt-25.12" >> feeds.conf.default
+          # Update feeds (for 23.05.5)
+          echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-23.05" >> feeds.conf.default
+          echo "src-git packages https://git.openwrt.org/feed/packages.git;openwrt-23.05" >> feeds.conf.default
 
           ./scripts/feeds update -a
           ./scripts/feeds install -a
