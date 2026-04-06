@@ -26,13 +26,150 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build Test
+      - name: Prepare Environment
         run: |
-          echo "Building for ${{ matrix.target.arch }}"
-          echo "Test workflow"
+          sudo apt-get update
+          sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
+            gettext git java-propose-classpath libelf-dev libncurses5-dev \
+            libncursesw5-dev libssl-dev python3 unzip rsync subversion \
+            xsltproc zlib1g-dev
 
-      - name: Upload Artifacts
+      - name: Download SDK
+        run: |
+          TARGET_MAP="x86_64:x86:64 aarch64:aarch64:generic armv7:arm:cortex-a7_neon-vfpv4 mips:mips:24kc mipsel:mipsel:24kc"
+          ARCH=$(echo "$TARGET_MAP" | tr ' ' '\n' | grep "${{ matrix.target.arch }}:" | cut -d: -f2-)
+          SUBARCH=$(echo "$TARGET_MAP" | tr ' ' '\n' | grep "${{ matrix.target.arch }}:" | cut -d: -f3-)
+          SDK_ARCH="${ARCH}_${SUBARCH}"
+          
+          SDK_URL="https://downloads.openwrt.org/releases/24.10.0/targets/$ARCH/$SUBARCH/openwrt-sdk-24.10.0-${SDK_ARCH}_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
+          echo "Downloading SDK for ${{ matrix.target.arch }}: $SDK_URL"
+          curl -L $SDK_URL -o sdk.tar.xz || { echo "SDK download failed"; exit 1; }
+          mkdir sdk
+          tar -xf sdk.tar.xz -C sdk --strip-components=1
+          git clone https://github.com/sdpong/phtunnel1.git source_tmp
+
+      - name: Build Packages
+        run: |
+          cd sdk
+          echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-24.10" >> feeds.conf.default
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          cp -r ../source_tmp/luci-app-phtunnel package/
+          cp -r ../source_tmp/phtunnel package/
+          make defconfig
+          echo "CONFIG_PACKAGE_phtunnel=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
+          echo "CONFIG_PACKAGE_luci-lib-jsonc=y" >> .config || echo "CONFIG_PACKAGE_luci-lib-json=y" >> .config
+          echo "CONFIG_PACKAGE_cgi-io=y" >> .config
+          echo "CONFIG_PACKAGE_curl=y" >> .config
+          make package/phtunnel/compile V=s
+          make package/luci-app-phtunnel/compile V=s
+
+      - name: Convert to APK
+        run: |
+          mkdir -p publish
+          
+          for ipk in $(find sdk/bin/packages/ -name "*.ipk"); do
+            pkg_name=$(basename "$ipk" .ipk)
+            pkg_version=$(basename "$ipk" .ipk | sed 's/.*_//')
+            apk_name="${pkg_name}_${{ matrix.target.arch }}.apk"
+            apk_dir=$(mktemp -d)
+            
+            # Extract IPK
+            mkdir -p "$apk_dir/apk"
+            tar -xzf "$ipk" -C "$apk_dir/apk"
+            
+            # Get metadata
+            if [ -f "$apk_dir/apk/control" ]; then
+              maintainer=$(grep "^Maintainer:" "$apk_dir/apk/control" | cut -d' ' -f2)
+              desc=$(grep "^Description:" "$apk_dir/apk/control" | sed 's/Description: //' | head -n1)
+            else
+              maintainer="Oray"
+              desc="PHTunnel package for OpenWrt"
+            fi
+            
+            # Create PKGINFO
+            cat > "$apk_dir/.PKGINFO" << PKGINFO
+pkgname = $pkg_name
+pkgver = $pkg_version
+pkgdesc = $desc
+url = https://hsk.oray.com/
+builddate = $(date -u +%Y%m%d%H%M%S)
+packager = OpenWrt Build System
+size = $(du -sb "$apk_dir/apk" | cut -f1)
+arch = ${{ matrix.target.arch }}
+license = GPL-2.0-only
+maintainer = $maintainer
+origin = openwrt
+PKGINFO
+            
+            # Create install scripts
+            cat > "$apk_dir/.pre-install" << 'PREINST'
+#!/bin/sh
+if [ -f /etc/init.d/phtunnel ]; then
+    /etc/init.d/phtunnel stop
+fi
+exit 0
+PREINST
+            
+            cat > "$apk_dir/.post-install" << 'POSTINST'
+#!/bin/sh
+if [ -f /etc/init.d/phtunnel ]; then
+    /etc/init.d/phtunnel enable
+fi
+exit 0
+POSTINST
+            
+            chmod +x "$apk_dir/.pre-install" "$apk_dir/.post-install"
+            
+            # Create APK
+            cd "$apk_dir"
+            tar -czf "$apk_name" .PKGINFO .pre-install .post-install apk/*
+            cp "$apk_name" "../../publish/"
+            
+            rm -rf "$apk_dir"
+          done
+          
+          ls -lh publish/
+
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: test-${{ matrix.target.name }}
-          path: README.md
+          name: phtunnel-${{ matrix.target.arch }}-apk
+          path: publish/*.apk
+          if-no-files-found: error
+
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+
+      - name: Prepare
+        run: |
+          mkdir -p release
+          find all-artifacts -name "*.apk" -exec cp {} release/ \;
+          ls -lh release/
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: release-$(date +"%Y.%m.%d-%H%M")
+          name: PHTunnel APK Release
+          files: release/*.apk
+          body: |
+            Build Date: 2026.04.05
+            Target: OpenWrt 24.10.0 converted to APK
+            Architectures: x86_64, aarch64, armv7, mips, mipsel
+            Packages: phtunnel, luci-app-phtunnel
+            Install: opkg install phtunnel_1.0.0-2_*.apk
