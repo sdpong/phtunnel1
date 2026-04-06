@@ -1,0 +1,36 @@
+name: Build PHTunnel APK
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        target:
+          - name: x86_64
+            arch: x86_64
+          - name: aarch64
+            arch: aarch64
+          - name: armv7
+            arch: armv7
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test
+        run: echo "Building for ${{ matrix.target.arch }}"
+
+      - name: Test Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-${{ matrix.target.name }}
+          path: README.md

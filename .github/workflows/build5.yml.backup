@@ -1,6 +1,8 @@
-name: Build PHTunnel APK
+name: Build PHTunnel APK Fixed
 
 on:
+  workflow_dispatch:
+
   push:
     branches:
       - master
