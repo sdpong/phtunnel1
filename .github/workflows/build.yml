@@ -194,5 +194,5 @@ jobs:
             - Complete UCI permissions
             - Reduced to 5 architectures
             - Streamlined build process
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
