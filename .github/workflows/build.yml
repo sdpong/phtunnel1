@@ -159,7 +159,7 @@ EOF
             rm -rf "$tmpdir"
           done
           
-            ls -lh apk-output/
+          ls -lh apk-output/
         env:
           PKG_ARCH: ${{ matrix.pkg_arch }}
 
