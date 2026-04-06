@@ -33,42 +33,36 @@ jobs:
       - name: Download SDK
         run: |
           # Map inputs to architecture values (for OpenWrt 23.05.5 SDK)
-          case "${{ inputs.target }}" in
-            x86_64)
-              ARCH="x86"
-              SDK_ARCH="x86-64"
-              PKG_ARCH="x86_64"
-              BINARY_ARCH="64"
-              ;;
-            aarch64)
-              ARCH="aarch64_cortex-a53"
-              SDK_ARCH="aarch64_cortex-a53"
-              PKG_ARCH="aarch64_generic"
-              BINARY_ARCH="cortex-a53"
-              ;;
-            armv7)
-              ARCH="arm_cortex-a7_neon-vfpv4"
-              SDK_ARCH="arm_cortex-a7_neon-vfpv4"
-              PKG_ARCH="armv7"
-              BINARY_ARCH="cortex-a7-neon-vfpv4"
-              ;;
-            mips)
-              ARCH="ath79"
-              SDK_ARCH="ath79"
-              PKG_ARCH="mips_24kc"
-              BINARY_ARCH="generic"
-              ;;
-            mipsel)
-              ARCH="ramips"
-              SDK_ARCH="ramips"
-              PKG_ARCH="mipsel_24kc"
-              BINARY_ARCH="mt7620"
-              ;;
-            *)
-              echo "Unsupported architecture: ${{ inputs.target }}"
-              exit 1
-              ;;
-          esac
+          TARGET="${{ inputs.target }}"
+          if [ "$TARGET" = "x86_64" ]; then
+            ARCH="x86"
+            SDK_ARCH="x86-64"
+            PKG_ARCH="x86_64"
+            BINARY_ARCH="64"
+          elif [ "$TARGET" = "aarch64" ]; then
+            ARCH="aarch64_cortex-a53"
+            SDK_ARCH="aarch64_cortex-a53"
+            PKG_ARCH="aarch64_generic"
+            BINARY_ARCH="cortex-a53"
+          elif [ "$TARGET" = "armv7" ]; then
+            ARCH="arm_cortex-a7_neon-vfpv4"
+            SDK_ARCH="arm_cortex-a7_neon-vfpv4"
+            PKG_ARCH="armv7"
+            BINARY_ARCH="cortex-a7-neon-vfpv4"
+          elif [ "$TARGET" = "mips" ]; then
+            ARCH="ath79"
+            SDK_ARCH="ath79"
+            PKG_ARCH="mips_24kc"
+            BINARY_ARCH="generic"
+          elif [ "$TARGET" = "mipsel" ]; then
+            ARCH="ramips"
+            SDK_ARCH="ramips"
+            PKG_ARCH="mipsel_24kc"
+            BINARY_ARCH="mt7620"
+          else
+            echo "Unsupported architecture: $TARGET"
+            exit 1
+          fi
 
           # OpenWrt 23.05.5 SDK (latest stable with SDK available)
           # Note: Building with 23.05.5 SDK, packages compatible with OpenWrt 23.05.x and 25.12.x
