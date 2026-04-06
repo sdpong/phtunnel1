@@ -59,7 +59,7 @@ jobs:
               ;;
           esac
 
-          SDK_URL="https://downloads.openwrt.org/releases/23.05.5/targets/$ARCH/$BINARY_ARCH/openwrt-sdk-23.05.5-$ARCH-gcc-12.3.0_musl.Linux-x86_64.tar.xz"
+          SDK_URL="https://downloads.openwrt.org/releases/23.05.5/targets/$ARCH/$BINARY_ARCH/openwrt-sdk-23.05.5-${ARCH}_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
           echo "Downloading SDK from: $SDK_URL"
           curl -L "$SDK_URL" -o sdk.tar.xz
           tar -xf sdk.tar.xz
