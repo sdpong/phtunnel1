@@ -32,7 +32,7 @@ define Package/phtunnel/description
   PHTunnel is core component of HSK intranet penetration, which can easily implement high-performance
   reverse proxy applications, supports TCP, HTTP, HTTPS protocols, end-to-end TLS encrypted communication,
   black and white list anti-black verification, etc. Through PHTunnel, external network devices can easily
-  penetrate various complex routes and firewalls to access devices on the internal network.
+  penetrate various complex routes and firewalls to access devices on internal network.
 endef
 
 define Build/Prepare
