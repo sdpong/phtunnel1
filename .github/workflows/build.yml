@@ -32,54 +32,53 @@ jobs:
 
       - name: Download SDK
         run: |
-           # Map inputs to architecture values (for OpenWrt 23.05.5 SDK)
-          TARGET="${{ inputs.target }}"
-          if [ "$TARGET" = "x86_64" ]; then
-            ARCH="x86-64"
-            BINARY_ARCH="64"
-          elif [ "$TARGET" = "aarch64" ]; then
-            ARCH="aarch64_cortex-a53"
-            BINARY_ARCH="cortex-a53"
-          elif [ "$TARGET" = "armv7" ]; then
-            ARCH="arm_cortex-a7_neon-vfpv4"
-            BINARY_ARCH="cortex-a7-neon-vfpv4"
-          elif [ "$TARGET" = "mips" ]; then
-            ARCH="ath79"
-            BINARY_ARCH="generic"
-          elif [ "$TARGET" = "mipsel" ]; then
-            ARCH="ramips"
-            BINARY_ARCH="mt7620"
-          else
-            echo "Unsupported architecture: $TARGET"
-            exit 1
-          fi
+          case "${{ inputs.target }}" in
+            x86_64)
+              ARCH="x86-64"
+              BINARY_ARCH="64"
+              ;;
+            aarch64)
+              ARCH="aarch64_cortex-a53"
+              BINARY_ARCH="cortex-a53"
+              ;;
+            armv7)
+              ARCH="arm_cortex-a7_neon-vfpv4"
+              BINARY_ARCH="cortex-a7-neon-vfpv4"
+              ;;
+            mips)
+              ARCH="ath79"
+              BINARY_ARCH="generic"
+              ;;
+            mipsel)
+              ARCH="ramips"
+              BINARY_ARCH="mt7620"
+              ;;
+            *)
+              echo "Unsupported architecture"
+              exit 1
+              ;;
+          esac
 
-           # OpenWrt 23.05.5 SDK (latest with SDK available)
-          # Note: Packages built with 23.05.5 SDK are compatible with OpenWrt 23.05.x, 24.10.x and 25.12.x
-          SDK_URL="https://downloads.openwrt.org/releases/23.05.5/targets/$ARCH/$BINARY_ARCH/openwrt-sdk-23.05.5-${ARCH}_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
+          SDK_URL="https://downloads.openwrt.org/releases/23.05.5/targets/$ARCH/$BINARY_ARCH/openwrt-sdk-23.05.5-$ARCH-gcc-12.3.0_musl.Linux-x86_64.tar.xz"
           echo "Downloading SDK from: $SDK_URL"
           curl -L "$SDK_URL" -o sdk.tar.xz
           tar -xf sdk.tar.xz
 
-          # Clone package source
           git clone https://github.com/sdpong/phtunnel1.git source_tmp
 
       - name: Setup Build
         run: |
           cd sdk
-
-           # Update feeds (for 23.05.5)
+          
           echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-23.05" >> feeds.conf.default
           echo "src-git packages https://git.openwrt.org/feed/packages.git;openwrt-23.05" >> feeds.conf.default
-
+          
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-
-          # Copy packages
+          
           cp -r ../source_tmp/luci-app-phtunnel package/
           cp -r ../source_tmp/phtunnel package/
-
-          # Configure
+          
           make defconfig
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
