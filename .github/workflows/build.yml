@@ -1,13 +1,13 @@
-name: Build phtunnel1
+name: Build PHTunnel APK for OpenWrt 25.12.x
 
 on:
-  workflow_dispatch: # 手动触发编译
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 赋予发布 Release 的权限
+      contents: write
     strategy:
       matrix:
         target:
@@ -62,7 +62,7 @@ jobs:
           mkdir sdk
           tar -xf sdk.tar.xz -C sdk --strip-components=1
 
-          # 克隆插件源码（用于编译时访问其他文件）
+          # 克隆插件源码
           git clone https://github.com/oooopera/phtunnel1.git source_tmp
 
       - name: Build Package
@@ -70,7 +70,7 @@ jobs:
           cd sdk
 
           # 添加 LuCI feeds
-          echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-25.12.2" >> feeds.conf.default
+          echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-25.12" >> feeds.conf.default
 
           ./scripts/feeds update -a
           ./scripts/feeds install -a
@@ -86,9 +86,8 @@ jobs:
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
 
-          # 确保依赖包也被编译（支持向下兼容）
-          echo "CONFIG_PACKAGE_luci-lib-json=y" >> .config
-          echo "CONFIG_PACKAGE_luci-lib-jsonc=y" >> .config || true
+          # 确保依赖包也被编译
+          echo "CONFIG_PACKAGE_luci-lib-jsonc=y" >> .config
           echo "CONFIG_PACKAGE_cgi-io=y" >> .config
           echo "CONFIG_PACKAGE_curl=y" >> .config
 
@@ -117,18 +116,17 @@ jobs:
           make package/luci-app-phtunnel/compile V=s || { echo "luci-app-phtunnel build failed for ${{ matrix.target.name }}"; exit 1; }
 
       - name: Prepare Artifacts
-        id: prepare
         run: |
           mkdir -p publish/${{ matrix.target.name }}
-          # 查找编译好的 IPK 包
-          find sdk/bin/packages/ -name "phtunnel*.ipk" -exec cp {} publish/${{ matrix.target.name }}/ \;
-          find sdk/bin/packages/ -name "luci-app-phtunnel*.ipk" -exec cp {} publish/${{ matrix.target.name }}/ \;
-
+          
+          # 查找 APK 包
+          find sdk/bin/packages/ -name "*.apk" -exec cp {} publish/${{ matrix.target.name }}/ \;
+          
           # 列出找到的包
           echo "Packages for ${{ matrix.target.name }}:"
           ls -lh publish/${{ matrix.target.name }}/ || echo "No packages found for ${{ matrix.target.name }}"
 
-          # 设置时间戳标签供 Release 使用（只在第一个矩阵任务中设置）
+          # 设置时间戳标签供 Release 使用
           if [ "${{ matrix.target.name }}" = "x86_64" ]; then
             echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
           fi
@@ -136,8 +134,8 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: phtunnel1-${{ matrix.target.name }}-ipk
-          path: publish/${{ matrix.target.name }}/*.ipk
+          name: phtunnel-${{ matrix.target.name }}-apk
+          path: publish/${{ matrix.target.name }}/*.apk
           if-no-files-found: error
 
   release:
@@ -157,19 +155,19 @@ jobs:
       - name: Prepare Combined Release
         run: |
           mkdir -p combined-release
-          find all-artifacts -name "*.ipk" -exec cp {} combined-release/ \;
+          find all-artifacts -name "*.apk" -exec cp {} combined-release/ \;
           ls -lh combined-release/
 
       - name: Create Combined Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: release-$(date +"%Y.%m.%d-%H%M")
-          name: PHTunnel1 Combined Release - All Architectures
-          files: combined-release/*.ipk
+          name: PHTunnel Combined Release - All Architectures (APK)
+          files: combined-release/*.apk
           body: |
             Build Date: 2026.04.05
             Target: OpenWrt 25.12.2 (Multiple Architectures)
-            Package Format: IPK (standard OpenWrt package format)
+            Package Format: APK (OpenWrt 25.12.x standard format)
 
             Supported Architectures:
             - x86_64 (Intel/AMD 64-bit)
@@ -181,23 +179,25 @@ jobs:
             - mipsel_24kc (MIPSel 32-bit, 24KC)
 
             Included Packages:
-            - phtunnel_1.0.0-1_*.ipk (core daemon)
-            - luci-app-phtunnel_1.0.0-1_all.ipk (web interface)
+            - phtunnel_1.0.0-2_*.apk (core daemon)
+            - luci-app-phtunnel_1.0.0-2_all.apk (web interface)
 
             Compatibility:
-            ✅ OpenWrt 25.12.x (recommended)
-            ✅ OpenWrt 24.x
-            ✅ OpenWrt 23.x
-            ✅ OpenWrt 22.x
-            ✅ OpenWrt 21.02 and above
+            ✅ OpenWrt 25.12.x (required - APK format)
+            ✅ OpenWrt 25.11.x and below (not supported - IPK format only)
 
-            This release is adapted for OpenWrt 25.12.2 with backward compatibility for lower versions:
-            - Modern LuCI controller API (compatible with 21.02+)
-            - Enhanced procd service management (compatible with 18.06+)
-            - Complete UCI permissions (compatible with all versions)
-            - Dual JSON library support (luci-lib-json and luci-lib-jsonc)
-            - Updated build system for standard IPK packages
+            This release is adapted for OpenWrt 25.12.2:
+            - Modern LuCI controller API
+            - Enhanced procd service management
+            - Complete UCI permissions
+            - APK package format (standard for OpenWrt 25.12.x)
 
-            Please install the packages matching your device architecture.
+            ⚠️ IMPORTANT: OpenWrt 25.12.2+ uses APK format. Older versions (25.11.x and below) use IPK format and are NOT compatible.
+
+            Please install packages matching your device architecture using:
+            ```bash
+            opkg install phtunnel_1.0.0-2_*.apk
+            opkg install luci-app-phtunnel_1.0.0-2_all.apk
+            ```
           env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
