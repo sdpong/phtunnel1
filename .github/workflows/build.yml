@@ -68,6 +68,11 @@ jobs:
           echo "Downloading SDK from: $SDK_URL"
           curl -L "$SDK_URL" -o sdk.tar.xz
           tar -xf sdk.tar.xz
+          
+          SDK_DIR=$(ls -d openwrt-sdk-* 2>/dev/null | head -1)
+          if [ -n "$SDK_DIR" ]; then
+            mv "$SDK_DIR" sdk
+          fi
 
           git clone https://github.com/sdpong/phtunnel1.git source_tmp
 
