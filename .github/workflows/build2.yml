@@ -1,7 +1,6 @@
 name: Build PHTunnel APK
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - master
