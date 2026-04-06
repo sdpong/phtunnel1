@@ -14,23 +14,37 @@ jobs:
       contents: write
     strategy:
       matrix:
-        target:
+        include:
           - name: x86_64
-            arch: x86_64
+            sdk_target: x86
+            sdk_subtarget: 64
+            pkg_arch: x86_64
           - name: aarch64
-            arch: aarch64
+            sdk_target: aarch64
+            sdk_subtarget: generic
+            pkg_arch: aarch64
           - name: armv7
-            arch: armv7
+            sdk_target: arm
+            sdk_subtarget: cortex-a7
+            pkg_arch: armv7
+          - name: mips
+            sdk_target: mips
+            sdk_subtarget: 24kc
+            pkg_arch: mips
+          - name: mipsel
+            sdk_target: mipsel
+            sdk_subtarget: 24kc
+            pkg_arch: mipsel
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Test
-        run: echo "Building for ${{ matrix.target.arch }}"
+        run: echo "Building for ${{ matrix.name }}"
 
       - name: Test Upload
         uses: actions/upload-artifact@v4
         with:
-          name: test-${{ matrix.target.name }}
+          name: test-${{ matrix.name }}
           path: README.md
