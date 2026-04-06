@@ -36,25 +36,25 @@ define Package/phtunnel/description
 endef
 
 define Build/Prepare
-    mkdir -p $(PKG_BUILD_DIR)
-    cp $(DL_DIR)/$(PKG_SOURCE) $(PKG_BUILD_DIR)
-    chmod +x $(PKG_BUILD_DIR)/$(PKG_SOURCE)
+	mkdir -p $(PKG_BUILD_DIR)
+	cp $(DL_DIR)/$(PKG_SOURCE) $(PKG_BUILD_DIR)
+	chmod +x $(PKG_BUILD_DIR)/$(PKG_SOURCE)
 endef
 
 define Build/Compile
-    true
+	true
 endef
 
 define Package/phtunnel/install
-    $(INSTALL_DIR) $(1)/etc/init.d
-    $(INSTALL_DIR) $(1)/etc/config
-    $(INSTALL_DIR) $(1)/etc/hotplug.d/iface
-    $(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
+	$(INSTALL_DIR) $(1)/usr/sbin
 
-    $(INSTALL_BIN) $(PKG_BUILD_DIR)/phtunnel $(1)/usr/sbin/
-    $(INSTALL_BIN) ./files/etc/init.d/* $(1)/etc/init.d/
-    $(INSTALL_CONF) ./files/etc/config/* $(1)/etc/config/
-    $(INSTALL_BIN) ./files/etc/hotplug.d/iface/* $(1)/etc/hotplug.d/iface/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/phtunnel $(1)/usr/sbin/
+	$(INSTALL_BIN) ./files/etc/init.d/* $(1)/etc/init.d/
+	$(INSTALL_CONF) ./files/etc/config/* $(1)/etc/config/
+	$(INSTALL_BIN) ./files/etc/hotplug.d/iface/* $(1)/etc/hotplug.d/iface/
 endef
 
 $(eval $(call BuildPackage,phtunnel))
