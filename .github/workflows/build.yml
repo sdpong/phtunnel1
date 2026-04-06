@@ -2,6 +2,9 @@ name: Build PHTunnel APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - master
 
 jobs:
   build:
@@ -110,8 +113,6 @@ jobs:
         run: |
           cd sdk
           mkdir -p apk-output
-        env:
-          PKG_ARCH: ${{ matrix.pkg_arch }}
           
           for ipk in $(find bin/packages -name "*.ipk" | head -2); do
             echo "Processing: $ipk"
@@ -150,7 +151,7 @@ EOF
             chmod +x "$tmpdir/apk/.pre-install" "$tmpdir/apk/.post-install"
             
             cd "$tmpdir/apk"
-            apk="${name}_${ver}_${{ matrix.pkg_arch }}.apk"
+            apk="${name}_${ver}_${PKG_ARCH}.apk"
             tar -czf "$apk" .PKGINFO .pre-install .post-install *
             cp "$apk" "../../apk-output/"
             
@@ -158,7 +159,9 @@ EOF
             rm -rf "$tmpdir"
           done
           
-          ls -lh apk-output/
+            ls -lh apk-output/
+        env:
+          PKG_ARCH: ${{ matrix.pkg_arch }}
 
       - name: Upload
         uses: actions/upload-artifact@v4
