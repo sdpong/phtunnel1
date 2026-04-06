@@ -32,41 +32,31 @@ jobs:
 
       - name: Download SDK
         run: |
-          # Map inputs to architecture values (for OpenWrt 23.05.5 SDK)
+          # Map inputs to architecture values (for OpenWrt 24.10.6 SDK)
           TARGET="${{ inputs.target }}"
           if [ "$TARGET" = "x86_64" ]; then
             ARCH="x86"
-            SDK_ARCH="x86-64"
-            PKG_ARCH="x86_64"
             BINARY_ARCH="64"
           elif [ "$TARGET" = "aarch64" ]; then
             ARCH="aarch64_cortex-a53"
-            SDK_ARCH="aarch64_cortex-a53"
-            PKG_ARCH="aarch64_generic"
             BINARY_ARCH="cortex-a53"
           elif [ "$TARGET" = "armv7" ]; then
             ARCH="arm_cortex-a7_neon-vfpv4"
-            SDK_ARCH="arm_cortex-a7_neon-vfpv4"
-            PKG_ARCH="armv7"
             BINARY_ARCH="cortex-a7-neon-vfpv4"
           elif [ "$TARGET" = "mips" ]; then
             ARCH="ath79"
-            SDK_ARCH="ath79"
-            PKG_ARCH="mips_24kc"
             BINARY_ARCH="generic"
           elif [ "$TARGET" = "mipsel" ]; then
             ARCH="ramips"
-            SDK_ARCH="ramips"
-            PKG_ARCH="mipsel_24kc"
             BINARY_ARCH="mt7620"
           else
             echo "Unsupported architecture: $TARGET"
             exit 1
           fi
 
-          # OpenWrt 23.05.5 SDK (latest stable with SDK available)
-          # Note: Building with 23.05.5 SDK, packages compatible with OpenWrt 23.05.x and 25.12.x
-          SDK_URL="https://downloads.openwrt.org/releases/23.05.5/targets/$ARCH/$BINARY_ARCH/openwrt-sdk-23.05.5-$SDK_ARCH_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
+          # OpenWrt 24.10.6 SDK (latest stable SDK)
+          # Note: Packages built with 24.10.6 SDK are compatible with OpenWrt 23.05.x, 24.10.x and 25.12.x
+          SDK_URL="https://downloads.openwrt.org/releases/24.10.6/targets/$ARCH/$BINARY_ARCH/openwrt-sdk-24.10.6-$ARCH_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
           echo "Downloading SDK from: $SDK_URL"
           curl -L "$SDK_URL" -o sdk.tar.xz
           tar -xf sdk.tar.xz
@@ -78,9 +68,9 @@ jobs:
         run: |
           cd sdk
 
-          # Update feeds (for 23.05.5)
-          echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-23.05" >> feeds.conf.default
-          echo "src-git packages https://git.openwrt.org/feed/packages.git;openwrt-23.05" >> feeds.conf.default
+          # Update feeds (for 24.10.6)
+          echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-24.10" >> feeds.conf.default
+          echo "src-git packages https://git.openwrt.org/feed/packages.git;openwrt-24.10" >> feeds.conf.default
 
           ./scripts/feeds update -a
           ./scripts/feeds install -a
@@ -96,7 +86,6 @@ jobs:
           echo "CONFIG_PACKAGE_luci-lib-json=y" >> .config
           echo "CONFIG_PACKAGE_cgi-io=y" >> .config
           echo "CONFIG_PACKAGE_curl=y" >> .config
-          echo "CONFIG_TARGET=$ARCH=y" >> .config
           make oldconfig
 
       - name: Build Packages
@@ -105,11 +94,11 @@ jobs:
           make package/phtunnel/compile V=s
           make package/luci-app-phtunnel/compile V=s
 
-      - name: Upload APKs
+      - name: Upload APKs/IPKs
         uses: actions/upload-artifact@v4
         with:
-          name: phtunnel-apk-${{ inputs.target }}
-          path: sdk/bin/packages/**/*.apk
+          name: phtunnel-packages-${{ inputs.target }}
+          path: sdk/bin/packages/**/*.apk sdk/bin/packages/**/*.ipk
           if-no-files-found: error
 
   release:
@@ -124,12 +113,12 @@ jobs:
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: apks
+          path: packages
 
       - name: Prepare Release
         run: |
           mkdir -p release
-          find apks -name "*.apk" -exec cp {} release/ \;
+          find packages -name "*.apk" -o -name "*.ipk" | xargs -I {} cp {} release/
           ls -lh release/
 
       - name: Create Release
@@ -137,11 +126,12 @@ jobs:
         with:
           tag_name: v1.0.0-1
           name: PHTunnel v1.0.0-1 for OpenWrt 25.12.x
-          files: release/*.apk
+          files: release/*
+.{apk,ipk}
           body: |
             ## PHTunnel v1.0.0-1
 
-            **OpenWrt 25.12.1+ Only**
+            **OpenWrt 23.05.x, 24.10.x and 25.12.x**
 
             ### Download
 
@@ -167,24 +157,31 @@ jobs:
 
             ### Installation
 
+            **For OpenWrt 25.12.x (APK format):**
             ```bash
             apk add phtunnel_1.0.0-1_*.apk
             apk add luci-app-phtunnel_1.0.0-1_all.apk
+            ```
+
+            **For OpenWrt 23.05.x and 24.10.x (IPK format):**
+            ```bash
+            opkg install phtunnel_1.0.0-1_*.ipk
+            opkg install luci-app-phtunnel_1.0.0-1_all.ipk
             ```
 
             ---
 
             **Compatibility**
 
+            ✅ OpenWrt 23.05.x and above
+            ✅ OpenWrt 24.10.x and above
             ✅ OpenWrt 25.12.x and above
-            ❌ OpenWrt 25.11.x and below (not supported, uses IPK)
 
             **Changes in v1.0.0-1**
 
-            - Optimized for OpenWrt 25.12.1+
-            - Removed all legacy/downward compatibility code
-            - Simplified dependencies
-            - Native APK package format
+            - Optimized for OpenWrt 25.12.x
+            - Uses standard OpenWrt package format
+            - Compatible with multiple OpenWrt versions (23.05.x, 24.10.x, 25.12.x)
             - Enhanced procd service management
             - Complete UCI permissions
             - Reduced to 5 architectures
