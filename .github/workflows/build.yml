@@ -95,8 +95,10 @@ jobs:
           echo "CONFIG_PACKAGE_luci-lib-jsonc=y" >> .config
           echo "CONFIG_PACKAGE_cgi-io=y" >> .config
           echo "CONFIG_PACKAGE_curl=y" >> .config
-          echo "CONFIG_TARGET_${{ matrix.sdk_target }}=y" >> .config
+          echo "CONFIG_TARGET_${SDK_TARGET}=y" >> .config
           make oldconfig
+        env:
+          SDK_TARGET: ${{ matrix.sdk_target }}
 
       - name: Build
         run: |
@@ -108,6 +110,8 @@ jobs:
         run: |
           cd sdk
           mkdir -p apk-output
+        env:
+          PKG_ARCH: ${{ matrix.pkg_arch }}
           
           for ipk in $(find bin/packages -name "*.ipk" | head -2); do
             echo "Processing: $ipk"
@@ -125,7 +129,7 @@ pkgdesc = PHTunnel package for OpenWrt
 url = https://hsk.oray.com/
 builddate = 2026.04.05
 packager = OpenWrt Build System
-arch = ${matrix.pkg_arch}
+arch = ${PKG_ARCH}
 license = GPL-2.0-only
 maintainer = Oray <developer@oray.com>
 origin = openwrt
@@ -141,7 +145,7 @@ EOF
             echo "if [ -f /etc/init.d/phtunnel ]; then" >> "$tmpdir/apk/.post-install"
             echo "    /etc/init.d/phtunnel enable" >> "$tmpdir/apk/.post-install"
             echo "fi" >> "$tmpdir/apk/.post-install"
-            echo "exit 0" >> "$tmpdir/.post-install"
+            echo "exit 0" >> "$tmpdir/apk/.post-install"
             
             chmod +x "$tmpdir/apk/.pre-install" "$tmpdir/apk/.post-install"
             
@@ -195,4 +199,4 @@ EOF
             Target: OpenWrt 24.10.0
             Package Format: APK
             Architectures: x86_64, aarch64, armv7, mips, mipsel
-            Install: opkg install phtunnel_1.0.0-1_*.apk
+            Install: apk add phtunnel_1.0.0-1_*.apk
