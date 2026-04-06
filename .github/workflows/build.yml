@@ -82,16 +82,16 @@ jobs:
           # Configure and compile
           make defconfig
 
-          # Enable packages
+          # Enable phtunnel and luci-app-phtunnel
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
 
           # Ensure dependencies are compiled
-          echo "CONFIG_PACKAGE_luci-lib-json=y" >> .config
+          echo "CONFIG_PACKAGE_luci-lib-jsonc=y" >> .config || echo "CONFIG_PACKAGE_luci-lib-json=y" >> .config
           echo "CONFIG_PACKAGE_cgi-io=y" >> .config
           echo "CONFIG_PACKAGE_curl=y" >> .config
 
-          # Configure target
+          # Set target architecture
           case "${{ matrix.target.arch }}" in
             x86)
                 echo "CONFIG_TARGET_x86=y" >> .config
@@ -118,10 +118,15 @@ jobs:
       - name: Prepare Artifacts
         run: |
           mkdir -p publish/${{ matrix.target.name }}
+
+          # Find IPK packages
           find sdk/bin/packages/ -name "*.ipk" -exec cp {} publish/${{ matrix.target.name }}/ \;
+
+          # List found packages
           echo "Packages for ${{ matrix.target.name }}:"
           ls -lh publish/${{ matrix.target.name }}/ || echo "No packages found for ${{ matrix.target.name }}"
 
+          # Set timestamp tag for Release
           if [ "${{ matrix.target.name }}" = "x86_64" ]; then
             echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
           fi
@@ -178,9 +183,9 @@ jobs:
             - luci-app-phtunnel_1.0.0-2_all.ipk (web interface)
 
             Compatibility:
-            ✅ OpenWrt 21.02 and above
-            ✅ OpenWrt 24.10.x
-            ⚠️ OpenWrt 25.x (APK format - not tested)
+            OpenWrt 21.02 and above (IPK format)
+            OpenWrt 24.10.x (IPK format)
+            OpenWrt 25.11.x and below (APK format - not compatible)
 
             This release is adapted for OpenWrt 24.10.0:
             - Modern LuCI controller API
@@ -194,4 +199,4 @@ jobs:
             opkg install luci-app-phtunnel_1.0.0-2_all.ipk
             ```
           env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
