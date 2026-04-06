@@ -6,3 +6,81 @@ msgstr "基本设置"
 
 msgid "Setup"
 msgstr "设置"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Log"
+msgstr "日志"
+
+msgid "Enabled"
+msgstr "启用"
+
+msgid "Public IP"
+msgstr "公网IP"
+
+msgid "Device SN"
+msgstr "设备序列号"
+
+msgid "Device PWD"
+msgstr "设备密码"
+
+msgid "Device Status"
+msgstr "设备状态"
+
+msgid "offline"
+msgstr "离线"
+
+msgid "online"
+msgstr "在线"
+
+msgid "loginning"
+msgstr "登录中"
+
+msgid "retry"
+msgstr "重试中"
+
+msgid "unknown"
+msgstr "未知"
+
+msgid "bind account"
+msgstr "绑定账号"
+
+msgid "manager link"
+msgstr "管理链接"
+
+msgid "Download Log File"
+msgstr "下载日志文件"
+
+msgid "Log Path"
+msgstr "日志路径"
+
+msgid "Scan this Image"
+msgstr "扫描此二维码"
+
+msgid "load qrcode image failed"
+msgstr "加载二维码失败"
+
+msgid "log off ok"
+msgstr "退出成功"
+
+msgid "log off failed"
+msgstr "退出失败"
+
+msgid "phtunnel is not running"
+msgstr "花生壳服务未运行"
+
+msgid "get base info failed"
+msgstr "获取基本信息失败"
+
+msgid "get manager url failed"
+msgstr "获取管理地址失败"
+
+msgid "get qrcode image failed"
+msgstr "获取二维码失败"
+
+msgid "unbind account failed"
+msgstr "解绑账号失败"
+
+msgid "qrcode"
+msgstr "二维码"

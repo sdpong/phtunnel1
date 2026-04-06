@@ -122,25 +122,25 @@ function createInput(type, name, value) {
 
 var logpath = "<%=log_file%>";
 function downloadLogFile() {
-	var sid = "<%=luci.dispatcher.context.authsession%>";
-	var scriptname = '<%=luci.http.getenv("SCRIPT_NAME")%>';
-	var cgi_base = scriptname.replace(/\/[^\/]+$/, '');
+  var sid = "<%=(luci.dispatcher.context.authtoken or luci.dispatcher.context.authsession or "")%>";
+  var scriptname = '<%=luci.http.getenv("SCRIPT_NAME") or "/cgi-bin/luci"%>';
+  var cgi_base = scriptname.replace(/\/[^\/]+$/, '');
 
-	var form = document.createElement('form');
-	form.method = 'post';
-	form.action = '' + cgi_base + '/cgi-download';
-	form.enctype = 'application/x-www-form-urlencoded';
+  var form = document.createElement('form');
+  form.method = 'post';
+  form.action = '' + cgi_base + '/cgi-download';
+  form.enctype = 'application/x-www-form-urlencoded';
 
-	var sidInput = createInput('hidden', 'sessionid', sid);
-	var pathInput = createInput('hidden', 'path', logpath);
-	var filenameInput = createInput('hidden', 'filename', 'phtunnel.log');
-	form.appendChild(sidInput);
-	form.appendChild(pathInput);
-	form.appendChild(filenameInput);
+  var sidInput = createInput('hidden', 'sessionid', sid);
+  var pathInput = createInput('hidden', 'path', logpath);
+  var filenameInput = createInput('hidden', 'filename', 'phtunnel.log');
+  form.appendChild(sidInput);
+  form.appendChild(pathInput);
+  form.appendChild(filenameInput);
 
-	document.body.appendChild(form);
-	form.submit();
-	document.body.removeChild(form);
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
 }
 
 </script>

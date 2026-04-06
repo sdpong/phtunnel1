@@ -1,15 +1,15 @@
-m = Map("phtunnel")
-m.reset = true
+local m = Map("phtunnel", translate("PHTunnel"))
 
-local s = m:section(NamedSection, "base", "base", translate("Base Setup"))
+m:section(SimpleSection).template = "oray/phtunnel_status"
 
-enabled = s:option(Flag, "enabled", translate("Enabled"))
+s = m:section(NamedSection, "base", "base", translate("Base Setup"))
 
-enabled.rmempty = false
+o = s:option(Flag, "enabled", translate("Enabled"))
+o.default = o.disabled
+o.rmempty = false
 
-m.apply_on_parse = true
-m.on_after_apply = function(self)
-	io.popen("/etc/init.d/phtunnel restart")
+function m.on_after_commit()
+	luci.sys.exec("/etc/init.d/phtunnel restart >/dev/null 2>&1")
 end
 
 return m

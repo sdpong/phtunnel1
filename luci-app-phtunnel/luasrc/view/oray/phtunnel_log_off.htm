@@ -29,6 +29,6 @@ main()
 %>
 
 {
-	"code" : "<%=ret_code%>",
-	"error_msg" : "<%=_(ret_msg)%>"
+  "code" : "<%=ret_code%>",
+  "error_msg" : "<%=(translate and translate(ret_msg) or ret_msg)%>"
 }

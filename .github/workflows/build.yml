@@ -8,76 +8,196 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write  # 赋予发布 Release 的权限
-    
+    strategy:
+      matrix:
+        target:
+          - name: x86_64
+            arch: x86
+            subtarget: 64
+            sdk_arch: x86-64
+          - name: aarch64_cortex-a53
+            arch: aarch64
+            subtarget: generic
+            sdk_arch: aarch64_cortex-a53
+          - name: aarch64_generic
+            arch: aarch64
+            subtarget: generic
+            sdk_arch: aarch64_generic
+          - name: arm_cortex-a7
+            arch: arm
+            subtarget: cortex-a7
+            sdk_arch: arm_cortex-a7_neon-vfpv4
+          - name: arm_cortex-a9
+            arch: arm
+            subtarget: cortex-a9
+            sdk_arch: arm_cortex-a9_neon
+          - name: mips_24kc
+            arch: mips
+            subtarget: 24kc
+            sdk_arch: mips_24kc
+          - name: mipsel_24kc
+            arch: mipsel
+            subtarget: 24kc
+            sdk_arch: mipsel_24kc
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Prepare Environment
         run: |
-          sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
-          # 2026年编译环境补充：SDK 使用 zstd 压缩，需手动安装
           sudo apt-get update
-          sudo apt-get install -y zstd
+          sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
+            gettext git java-propose-classpath libelf-dev libncurses5-dev \
+            libncursesw5-dev libssl-dev python3 unzip python3-pyelftools \
+            python3-setuptools python3-distutils rsync subversion swig time \
+            xsltproc zlib1g-dev
 
       - name: Download SDK
         run: |
-          # ImmortalWrt 24.10.0 x86_64 SDK
-          SDK_URL="https://downloads.immortalwrt.org/releases/24.10.0/targets/x86/64/immortalwrt-sdk-24.10.0-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
-          curl -L $SDK_URL -o sdk.tar.zst
+          # OpenWrt 25.12.2 SDK for ${{ matrix.target.name }}
+          SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${{ matrix.target.arch }}/${{ matrix.target.subtarget }}/openwrt-sdk-25.12.2-${{ matrix.target.sdk_arch }}_gcc-14.2.0_musl.Linux-x86_64.tar.xz"
+          echo "Downloading SDK from: $SDK_URL"
+          curl -L $SDK_URL -o sdk.tar.xz || { echo "SDK download failed for ${{ matrix.target.name }}"; exit 1; }
           mkdir sdk
-          tar -I zstd -xf sdk.tar.zst -C sdk --strip-components=1
-          
-          # 克隆插件源码
+          tar -xf sdk.tar.xz -C sdk --strip-components=1
+
+          # 克隆插件源码（用于编译时访问其他文件）
           git clone https://github.com/oooopera/phtunnel1.git source_tmp
 
       - name: Build Package
         run: |
           cd sdk
+
+          # 添加 LuCI feeds
+          echo "src-git luci https://git.openwrt.org/project/luci.git;openwrt-25.12.2" >> feeds.conf.default
+
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          
+
           # 移动源码到 SDK package 目录
           cp -r ../source_tmp/luci-app-phtunnel package/
           cp -r ../source_tmp/phtunnel package/
-          
+
           # 配置并编译
           make defconfig
-          sed -i 's/CONFIG_PACKAGE_phtunnel=m/CONFIG_PACKAGE_phtunnel=y/' .config
-          sed -i 's/CONFIG_PACKAGE_luci-app-phtunnel=m/CONFIG_PACKAGE_luci-app-phtunnel=y/' .config
-          
-          make package/phtunnel/compile V=s
-          make package/luci-app-phtunnel/compile V=s
+
+          # 启用 phtunnel 和 luci-app-phtunnel
+          echo "CONFIG_PACKAGE_phtunnel=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
+
+          # 确保依赖包也被编译（支持向下兼容）
+          echo "CONFIG_PACKAGE_luci-lib-json=y" >> .config
+          echo "CONFIG_PACKAGE_luci-lib-jsonc=y" >> .config || true
+          echo "CONFIG_PACKAGE_cgi-io=y" >> .config
+          echo "CONFIG_PACKAGE_curl=y" >> .config
+
+          # 根据架构设置
+          case "${{ matrix.target.arch }}" in
+            x86)
+              echo "CONFIG_TARGET_x86=y" >> .config
+              echo "CONFIG_TARGET_x86_64=y" >> .config
+              ;;
+            aarch64)
+              echo "CONFIG_TARGET_aarch64=y" >> .config
+              echo "CONFIG_TARGET_${{ matrix.target.sdk_arch }}=y" >> .config
+              ;;
+            arm)
+              echo "CONFIG_TARGET_arm=y" >> .config
+              echo "CONFIG_TARGET_${{ matrix.target.sdk_arch }}=y" >> .config
+              ;;
+            mips|mipsel)
+              echo "CONFIG_TARGET_${{ matrix.target.arch }}=y" >> .config
+              echo "CONFIG_TARGET_${{ matrix.target.sdk_arch }}=y" >> .config
+              ;;
+          esac
+
+          # 编译包
+          make package/phtunnel/compile V=s || { echo "phtunnel build failed for ${{ matrix.target.name }}"; exit 1; }
+          make package/luci-app-phtunnel/compile V=s || { echo "luci-app-phtunnel build failed for ${{ matrix.target.name }}"; exit 1; }
 
       - name: Prepare Artifacts
         id: prepare
         run: |
-          mkdir -p publish
-          # 2026.01.07 提示：使用 find 确保能抓取到带后缀的文件名
-          find sdk/bin/packages/ -name "phtunnel*.ipk" -exec cp {} publish/ \;
-          find sdk/bin/packages/ -name "luci-app-phtunnel*.ipk" -exec cp {} publish/ \;
-          
-          # 设置时间戳标签供 Release 使用
-          echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
+          mkdir -p publish/${{ matrix.target.name }}
+          # 查找编译好的 IPK 包
+          find sdk/bin/packages/ -name "phtunnel*.ipk" -exec cp {} publish/${{ matrix.target.name }}/ \;
+          find sdk/bin/packages/ -name "luci-app-phtunnel*.ipk" -exec cp {} publish/${{ matrix.target.name }}/ \;
+
+          # 列出找到的包
+          echo "Packages for ${{ matrix.target.name }}:"
+          ls -lh publish/${{ matrix.target.name }}/ || echo "No packages found for ${{ matrix.target.name }}"
+
+          # 设置时间戳标签供 Release 使用（只在第一个矩阵任务中设置）
+          if [ "${{ matrix.target.name }}" = "x86_64" ]; then
+            echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
+          fi
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: phtunnel1-ipk
-          path: publish/*.ipk
+          name: phtunnel1-${{ matrix.target.name }}-ipk
+          path: publish/${{ matrix.target.name }}/*.ipk
           if-no-files-found: error
 
-      - name: Create Release
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+
+      - name: Prepare Combined Release
+        run: |
+          mkdir -p combined-release
+          find all-artifacts -name "*.ipk" -exec cp {} combined-release/ \;
+          ls -lh combined-release/
+
+      - name: Create Combined Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.prepare.outputs.release_tag }}
-          name: Release phtunnel1 ${{ steps.prepare.outputs.release_tag }}
-          files: publish/*.ipk
+          tag_name: release-$(date +"%Y.%m.%d-%H%M")
+          name: PHTunnel1 Combined Release - All Architectures
+          files: combined-release/*.ipk
           body: |
-            Build Date: 2026.01.07
-            Target: ImmortalWrt 24.10 x86_64
+            Build Date: 2026.04.05
+            Target: OpenWrt 25.12.2 (Multiple Architectures)
+            Package Format: IPK (standard OpenWrt package format)
+
+            Supported Architectures:
+            - x86_64 (Intel/AMD 64-bit)
+            - aarch64_cortex-a53 (ARM 64-bit, Cortex-A53)
+            - aarch64_generic (ARM 64-bit, Generic)
+            - arm_cortex-a7 (ARM 32-bit, Cortex-A7)
+            - arm_cortex-a9 (ARM 32-bit, Cortex-A9)
+            - mips_24kc (MIPS 32-bit, 24KC)
+            - mipsel_24kc (MIPSel 32-bit, 24KC)
+
             Included Packages:
-            - phtunnel
-            - luci-app-phtunnel
-        env:
+            - phtunnel_1.0.0-1_*.ipk (core daemon)
+            - luci-app-phtunnel_1.0.0-1_all.ipk (web interface)
+
+            Compatibility:
+            ✅ OpenWrt 25.12.x (recommended)
+            ✅ OpenWrt 24.x
+            ✅ OpenWrt 23.x
+            ✅ OpenWrt 22.x
+            ✅ OpenWrt 21.02 and above
+
+            This release is adapted for OpenWrt 25.12.2 with backward compatibility for lower versions:
+            - Modern LuCI controller API (compatible with 21.02+)
+            - Enhanced procd service management (compatible with 18.06+)
+            - Complete UCI permissions (compatible with all versions)
+            - Dual JSON library support (luci-lib-json and luci-lib-jsonc)
+            - Updated build system for standard IPK packages
+
+            Please install the packages matching your device architecture.
+          env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

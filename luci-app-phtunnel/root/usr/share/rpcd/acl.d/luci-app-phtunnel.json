@@ -1,8 +1,12 @@
 {
   "phtunnel-luci-app": {
-    "description": "phtunnel luci interface",
+    "description": "Grant access to PHTunnel UCI configuration and file download",
     "read": {
-      "cgi-io": [ "download" ]
+      "cgi-io": [ "download" ],
+      "uci": [ "phtunnel" ]
+    },
+    "write": {
+      "uci": [ "phtunnel" ]
     }
   }
 }
