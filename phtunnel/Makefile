@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=phtunnel
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 
 PKG_SOURCE:=phtunnel
 PKG_SOURCE_URL:=https://mirrors.oray.com/orayos/packages/$(PKG_NAME)/$(PKG_VERSION)/bin
@@ -21,8 +21,7 @@ define Package/phtunnel
   URL:=https://hsk.oray.com/
   MAINTAINER:=Oray <developer@oray.com>
   LICENSE:=Proprietary
-  DEPENDS:=@(arm||aarch64||mips||mipsel||i386||x86_64) \
-    +libc +libpthread +librt
+  DEPENDS:=+libc +libpthread +librt
 endef
 
 define Package/phtunnel/description

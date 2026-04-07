@@ -1,39 +1,38 @@
-# PHTunnel for OpenWrt 25.12.x (APK Format)
+# PHTunnel for OpenWrt 25.12.x
 
-> 本项目针对 OpenWrt 25.12.x 进行了优化，使用 APK 包格式，支持多架构编译和 GitHub Actions 自动构建
+> 本项目针对 OpenWrt 25.12.x 进行了优化，使用 IPK 包格式，支持多路由器架构编译
 
 [![Build Status](https://github.com/sdpong/phtunnel1/actions/workflows/build.yml/badge.svg)](https://github.com/sdpong/phtunnel1/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/license-GPL--2.0-blue.svg)](LICENSE)
 
 ## 重要说明
 
-OpenWrt 25.12.x 及以上版本已切换到 **APK 包格式**（与 Alpine Linux 相同的包管理格式）
+OpenWrt 25.12.x 及以上版本使用 **IPK 包格式**（传统 OpenWrt 包格式）。
 
-- ✅ **OpenWrt 25.12.x 及以上版本**: 使用 **APK** 格式
-- ❌ **OpenWrt 25.11.x 及以下版本**: 使用 **IPK** 格式（不兼容）
+- ✅ **OpenWrt 25.12.x 及以上版本**: 使用 **IPK** 格式
+- ❌ **OpenWrt 23.05.x 及以下版本**: 可能不兼容
 
 ## 主要特性
 
-- ✅ **多架构支持**: 7 种 CPU 架构
-- ✅ **APK 包格式**: 完整支持 OpenWrt 25.12.x
+- ✅ **多架构支持**: 7 种主流路由器架构
+- ✅ **IPK 包格式**: OpenWrt 25.12.x 标准包格式
 - ✅ **GitHub Actions**: 自动化 CI/CD 构建
 - ✅ **矩阵构建**: 并行构建所有架构
 - ✅ **自动发布**: 推送 tag 自动创建 Release
-- ✅ **缓存优化**: SDK 缓存加速构建
 - ✅ **版本管理**: 简化的版本控制工具
 - ✅ **包验证**: 自动验证包完整性
 
-## 支持的架构
+## 支持的路由器架构
 
-| 架构 | 适用设备 | 状态 |
-|------|---------|------|
-| x86_64 | Intel/AMD 64-bit（PC、服务器、虚拟机） | ✅ |
-| aarch64_cortex-a53 | ARM 64-bit, Cortex-A53（树莓派 4、Rockchip） | ✅ |
-| aarch64_generic | ARM 64-bit, 通用（其他 ARM64 设备） | ✅ |
-| arm_cortex-a7 | ARM 32-bit, Cortex-A7（树莓派 2/3、Orange Pi） | ✅ |
-| arm_cortex-a9 | ARM 32-bit, Cortex-A9（老款路由器） | ✅ |
-| mips_24kc | MIPS 32-bit, 24KC（MT7620/MT7628 路由器） | ✅ |
-| mipsel_24kc | MIPSel 32-bit, 24KC（MT7620/MT7621 路由器） | ✅ |
+| 架构 | 芯片/平台 | 设备示例 | 状态 |
+|------|-----------|---------|------|
+| qualcommax-ipq807x | Qualcomm IPQ807x | 小米 AX3600/AX9000、红米 AX6/AX7、华硕 RT-AX89X、TP-Link Deco X80-5G | ✅ **必须支持** |
+| ramips-mt7621 | MediaTek MT7621 | 斐讯 K3、小米路由器 4A、中兴、部分 TP-Link | ✅ |
+| ramips-mt7620 | MediaTek MT7620/MT7628 | 小米路由器 4C、部分 TP-Link、水星 MW300R | ✅ |
+| ath79-generic | Atheros AR71xx/AR9xxx | TP-Link WR842N、NanoStation、UBNT | ✅ |
+| bcm27xx-bcm2712 | Broadcom BCM2712 | 树莓派 5 | ✅ |
+| mediatek-filogic | MediaTek Filogic (MT7986) | 红米 AX6000、TP-Link XDR6088、小米 AX6000 | ✅ |
+| x86-64 | x86_64 | 通用 x86 路由器、软路由 | ✅ |
 
 ## 快速开始
 
@@ -55,7 +54,7 @@ OpenWrt 25.12.x 及以上版本已切换到 **APK 包格式**（与 Alpine Linux
    git push origin main --tags
    ```
 
-3. **下载包** - 从 GitHub Release 下载对应架构的 APK 包
+3. **下载包** - 从 GitHub Release 下载对应架构的 IPK 包
 
 ### 手动触发构建
 
@@ -67,30 +66,35 @@ OpenWrt 25.12.x 及以上版本已切换到 **APK 包格式**（与 Alpine Linux
 
 ### 1. 检测架构
 
+在 OpenWrt 路由器上运行：
+
 ```bash
-# 在 OpenWrt 路由器上运行
-./scripts/detect-arch.sh
+opkg print-architecture
+# 或
+cat /etc/openwrt_release | grep DISTRIB_ARCH
 ```
 
 ### 2. 下载包
 
 从 [GitHub Releases](https://github.com/sdpong/phtunnel1/releases) 下载对应架构的包：
-- `phtunnel_1.0.0-3_<架构>.apk`
-- `luci-app-phtunnel_1.0.0-3_all.apk`
+- `phtunnel_<version>_<架构>.ipk`
+- `luci-app-phtunnel_<version>_all.ipk`
 
 ### 3. 上传并安装
 
 ```bash
 # 上传到路由器
-scp phtunnel_*.apk luci-app-phtunnel_*.apk root@<路由器IP>:/tmp/
+scp phtunnel_*.ipk luci-app-phtunnel_*.ipk root@<路由器IP>:/tmp/
 
 # SSH 连接到路由器
 ssh root@<路由器IP>
 
+# 更新包列表
+opkg update
+
 # 安装包
 cd /tmp
-apk add phtunnel_*.apk
-apk add luci-app-phtunnel_*.apk
+opkg install phtunnel_*.ipk luci-app-phtunnel_*.ipk
 
 # 启用并启动服务
 /etc/init.d/phtunnel enable
@@ -116,9 +120,9 @@ apk add luci-app-phtunnel_*.apk
 ./scripts/version.sh set 1.1.0-1
 
 # 提升版本
-./scripts/version.sh bump patch  # 1.0.0-3 -> 1.0.1-4
-./scripts/version.sh bump minor  # 1.0.0-3 -> 1.1.0-1
-./scripts/version.sh bump major  # 1.0.0-3 -> 2.0.0-1
+./scripts/version.sh bump patch  # 1.0.0-4 -> 1.0.1-5
+./scripts/version.sh bump minor  # 1.0.0-4 -> 1.1.0-1
+./scripts/version.sh bump major  # 1.0.0-4 -> 2.0.0-1
 
 # 创建 git tag
 ./scripts/version.sh tag
@@ -131,13 +135,13 @@ apk add luci-app-phtunnel_*.apk
 ./scripts/build-all.sh
 
 # 构建特定架构
-./scripts/build-all.sh -a x86_64
+./scripts/build-all.sh -a qualcommax-ipq807x
 
 # 指定版本
 ./scripts/build-all.sh -v 1.1.0-1
 
 # 使用现有 SDK
-./scripts/build-all.sh -s ./openwrt-sdk-x86_64
+./scripts/build-all.sh -s ./openwrt-sdk-x86-64
 ```
 
 ### 包验证
@@ -167,7 +171,6 @@ apk add luci-app-phtunnel_*.apk
 
 3. **缓存优化**:
    - SDK 缓存，加速后续构建
-   - 依赖缓存
 
 4. **自动发布**:
    - Tag 触发自动创建 GitHub Release
@@ -216,14 +219,14 @@ phtunnel1/
 │   ├── luasrc/
 │   └── root/
 │       └── usr/share/rpcd/acl.d/
-│           └── luci-app-phtunnel.json
+│           └── luci-app-phtunnel.json  # RPC 权限
 ├── scripts/
 │   ├── build-all.sh             # 本地构建脚本
 │   ├── verify-packages.sh        # 包验证脚本
 │   ├── generate-summary.sh      # 构建摘要生成
 │   ├── version.sh               # 版本管理
 │   ├── detect-arch.sh           # 架构检测
-│   └── apk-packager.sh          # APK 打包
+│   └── apk-packager.sh          # 打包工具
 └── README.md
 ```
 
@@ -268,91 +271,70 @@ cat /var/log/oraybox/phtunnel.log
 
 ## 常见问题
 
-### Q: 提示"不兼容的包格式"?
+### Q: 如何确认路由器架构？
 
-A: 您的 OpenWrt 版本可能是 25.11.x 或更低，这些版本只支持 IPK 格式。请升级到 OpenWrt 25.12.x 或更高版本。
-
-### Q: 如何检查 OpenWrt 版本?
-
+A: 在路由器上运行：
 ```bash
-cat /etc/openwrt_release
-# 或
-ubus call system board
+cat /etc/openwrt_release | grep DISTRIB_ARCH
 ```
 
-### Q: 提示依赖缺失?
+### Q: 提示依赖缺失？
 
-A: 请确保安装了所有依赖包:
-
+A: 请确保安装了所有依赖包：
 ```bash
-apk update
-apk add luci-lib-jsonc cgi-io curl
+opkg update
+opkg install luci-lib-jsonc cgi-io curl
 ```
 
-### Q: LuCI 界面显示空白?
+### Q: LuCI 界面显示空白？
 
-A: 清除缓存并重启相关服务:
-
+A: 清除缓存并重启相关服务：
 ```bash
 rm -rf /tmp/luci-*
 /etc/init.d/rpcd restart
 /etc/init.d/uhttpd restart
 ```
 
-### Q: 服务无法启动?
+### Q: 服务无法启动？
 
-A: 检查日志和配置:
-
+A: 检查日志和配置：
 ```bash
 cat /var/log/oraybox/phtunnel.log
 /etc/init.d/phtunnel status
 ```
 
-### Q: 构建失败?
+### Q: 我的路由器不在支持列表中？
 
-A: 检查 GitHub Actions 日志，常见原因：
-- SDK 下载失败（网络问题）
-- 依赖包未安装
-- Makefile 语法错误
+A: 您可以：
+1. 查看 [OpenWrt 官方支持列表](https://downloads.openwrt.org/releases/25.12.1/targets/)
+2. 创建 Issue 提供您的路由器型号和架构信息
+3. 手动构建：下载对应架构的 SDK 并运行 `./scripts/build-all.sh`
 
 ## 卸载
 
 ```bash
 /etc/init.d/phtunnel stop
 /etc/init.d/phtunnel disable
-apk del luci-app-phtunnel phtunnel
+opkg remove luci-app-phtunnel phtunnel
 ```
 
 ## 更新日志
 
+### v1.0.0-4 (2026-04-06)
+
+- ✅ 修复 SDK 下载 URL（使用 OpenWrt 25.12.1）
+- ✅ 更新 GCC 版本至 14.3.0
+- ✅ 添加 qualcommax-ipq807x 架构支持（WiFi 6/7 路由器）
+- ✅ 添加 ramips-mt7621 架构支持（斐讯 K3 等）
+- ✅ 添加 ramips-mt7620 架构支持（小米路由器 4C 等）
+- ✅ 添加 mediatek-filogic 架构支持（红米 AX6000 等）
+- ✅ 修改包格式为 IPK（OpenWrt 标准格式）
+- ✅ 优化架构列表，专注于主流路由器芯片
+
 ### v1.0.0-3 (2026-04-06)
 
-- ✅ 适配 OpenWrt 25.12.x
-- ✅ 切换到 APK 包格式（放弃 IPK）
-- ✅ 支持多架构编译（7 种架构）
-- ✅ GitHub Actions 矩阵构建
-- ✅ 自动发布功能
-- ✅ SDK 缓存优化
-- ✅ 版本管理工具
-- ✅ 包验证脚本
-- ✅ 构建摘要生成
-- ✅ 架构检测工具
-- ✅ 本地构建脚本
-
-### v1.0.0-1 (2026-04-05)
-
-- ⚠️ 此版本使用 IPK 格式，不兼容 OpenWrt 25.12.x
-- ⚠️ OpenWrt 25.11.x 及以下版本请使用此版本
-
-## 贡献指南
-
-欢迎提交 Issue 和 Pull Request！
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 创建 Pull Request
+- ⚠️ 此版本使用了错误的架构定义
+- ⚠️ OpenWrt 25.12.x 使用 IPK 而非 APK
 
 ## 许可证
 
