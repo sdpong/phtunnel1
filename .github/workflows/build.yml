@@ -97,7 +97,7 @@ jobs:
           SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${TARGET}/${ARCH}/openwrt-sdk-25.12.2-${ARCH}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
           echo "Downloading SDK from: $SDK_URL"
           curl -L "$SDK_URL" -o sdk.tar.zst
-          tar -xf sdk.tar.zst
+          tar --zstd -xf sdk.tar.zst
 
           SDK_DIR=$(ls -d openwrt-sdk-* 2>/dev/null | head -1)
           if [ -n "$SDK_DIR" ]; then
