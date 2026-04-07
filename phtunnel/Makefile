@@ -6,8 +6,8 @@ PKG_VERSION:=1.0.0
 PKG_RELEASE:=1
 
 # 源代码信息
-PKG_SOURCE:=phtunnel
-PKG_SOURCE_URL:=https://mirrors.oray.com/orayos/packages/$(PKG_NAME)/$(PKG_VERSION)/bin
+# 使用本地二进制文件进行测试
+PKG_SOURCE_URL:=
 PKG_HASH:=skip
 PKG_FLAGS:=nonshared
 PKG_MAINTAINER:=Oray <developer@oray.com>
@@ -37,8 +37,9 @@ endef
 
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
-	cp $(DL_DIR)/$(PKG_SOURCE) $(PKG_BUILD_DIR)
-	chmod +x $(PKG_BUILD_DIR)/$(PKG_SOURCE)
+	# 使用本地二进制文件（测试用）
+	cp $(CURDIR)/phtunnel-binary $(PKG_BUILD_DIR)/phtunnel
+	chmod +x $(PKG_BUILD_DIR)/phtunnel
 endef
 
 define Build/Compile
