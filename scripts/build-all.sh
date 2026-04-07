@@ -2,7 +2,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="${VERSION:-1.0.0-4}"
+VERSION="${VERSION:-1.0.0-6}"
 SDK_DIR="${SDK_DIR:-./openwrt-sdk}"
 
 ARCHS=(
@@ -21,13 +21,13 @@ Usage: $0 [OPTIONS]
 
 Options:
   -a, --arch ARCH    Build specific architecture only
-  -v, --version VER  Set version (default: 1.0.0-4)
+  -v, --version VER  Set version (default: 1.0.0-6)
   -s, --sdk DIR      OpenWrt SDK directory
   -h, --help         Show this help message
 
 Architectures:
   x86-64              - Generic x86_64 routers
-  qualcommax-ipq807x - Qualcomm IPQ807x (小米 AX3600/AX9000, 红米 AX6, 华硕 RT-AX89X 等)
+  qualcommax-ipq807x - Qualcomm IPQ807x (小米 AX3600/AX9000, 红米 AX6/AX7, 华硕 RT-AX89X 等)
   ramips-mt7621       - MediaTek MT7621 (斐讯 K3, 小米路由器 4A, TP-Link 等)
   ramips-mt7620       - MediaTek MT7620/MT7628 (小米路由器 4C 等)
   ath79-generic       - Atheros AR71xx/AR9xxx (TP-Link WR842N, NanoStation 等)
@@ -38,7 +38,7 @@ Examples:
   $0                          # Build all architectures
   $0 -a x86-64               # Build only x86-64
   $0 -v 1.1.0-1              # Build version 1.1.0-1
-  $0 -s ./openwrt-imagebuilder-x86_64 # Use specific SDK
+  $0 -s ./openwrt-sdk-x86_64 # Use specific SDK
 
 USAGE
 }
@@ -48,7 +48,7 @@ download_sdk() {
     local subarch="$2"
     local sdk_subarch="$3"
     
-    local sdk_name="openwrt-imagebuilder-${arch}-${sdk_subarch}_gcc-14.3.0_musl.Linux-x86_64"
+    local sdk_name="openwrt-sdk-25.12.1-${arch}-${subarch}_gcc-14.3.0_musl.Linux-x86_64"
     local sdk_url="https://downloads.openwrt.org/releases/25.12.1/targets/${arch}/${subarch}/${sdk_name}.tar.zst"
     
     if [ -d "$SDK_DIR" ]; then
@@ -59,7 +59,7 @@ download_sdk() {
     echo "Downloading SDK: $sdk_url"
     
     if curl -fL "$sdk_url" -o "${sdk_name}.tar.zst"; then
-        tar -xf "${sdk_name}.tar.zst"
+        tar --use-compress-program=zstd -xf "${sdk_name}.tar.zst"
         mv "$sdk_name" "$SDK_DIR"
         echo "SDK downloaded and extracted"
     else
@@ -76,17 +76,15 @@ build_package() {
     echo "Building for: $name"
     echo "=========================================="
     
-    local work_dir="build_${name}"
-    mkdir -p "$work_dir"
-    
     if ! download_sdk "$arch" "$subarch" "$sdk_subarch"; then
         echo "Skipping $name (SDK download failed)"
         return 1
     fi
     
-    cd "$work_dir"
+    local work_dir="build_${name}"
+    mkdir -p "$work_dir"
     
-    cp -r "$SDK_DIR" sdk
+    cd "$work_dir"
     
     echo "Copying packages..."
     cp -r "$SCRIPT_DIR/../phtunnel" sdk/package/

@@ -32,7 +32,7 @@ env:
   PKG_NAME: phtunnel
   LUCI_PKG_NAME: luci-app-phtunnel
   PKG_VERSION: 1.0.0
-  PKG_RELEASE: 4
+  PKG_RELEASE: 6
   OPENWRT_VERSION: 25.12.1
 
 jobs:
@@ -84,7 +84,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git g++ libelf-dev libncurses5-dev libssl-dev zlib1g-dev
+          sudo apt-get install -y build-essential git g++ libelf-dev libncurses5-dev libssl-dev zlib1g-dev zstd
 
       - name: Get SDK info
         id: sdk_info
@@ -148,7 +148,7 @@ jobs:
           if [ ! -d "sdk" ]; then
             echo "Downloading OpenWrt SDK..."
             
-            SDK_RELEASE="https://downloads.openwrt.org/releases/${{ env.OPENWRT_VERSION }}/targets/${{ steps.sdk_info.outputs.arch }}/${{ steps.sdk_info.outputs.subarch }}/openwrt-imagebuilder-${{ steps.sdk_info.outputs.arch }}-${{ steps.sdk_info.outputs.sdk_subarch }}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+            SDK_RELEASE="https://downloads.openwrt.org/releases/${{ env.OPENWRT_VERSION }}/targets/${{ steps.sdk_info.outputs.arch }}/${{ steps.sdk_info.outputs.subarch }}/openwrt-sdk-${{ env.OPENWRT_VERSION }}-${{ steps.sdk_info.outputs.arch }}-${{ steps.sdk_info.outputs.sdk_subarch }}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
             
             if curl -fL "$SDK_RELEASE" -o sdk.tar.zst 2>/dev/null; then
               echo "Downloaded release SDK"
@@ -157,8 +157,8 @@ jobs:
               exit 1
             fi
             
-            tar -xf sdk.tar.zst
-            mv openwrt-imagebuilder-* sdk
+            tar --use-compress-program=zstd -xf sdk.tar.zst
+            mv openwrt-sdk-* sdk
           else
             echo "Using cached SDK"
           fi
@@ -281,19 +281,19 @@ jobs:
       - name: Generate release notes
         run: |
           cat > release_notes.md << 'EOF'
-          ## PHTunnel ${{ needs.prepare.outputs.version }} for OpenWrt 25.12.x
+          ## PHTunnel ${{ needs.prepare.outputs.version }} for OpenWrt 25.12.1
           
           ### 支持的路由器架构
           
           | 架构 | 芯片/平台 | 设备示例 |
           |------|-----------|---------|
           | x86-64 | x86_64 | 通用 x86_64 路由器、软路由 |
-          | qualcommax-ipq807x | Qualcomm IPQ807x | 小米 AX3600/AX9000、红米 AX6、红魔 AX7、华硕 RT-AX89X 等 |
-          | ramips-mt7621 | MediaTek MT7621 | 斐讯 K3、小米路由器 4A、中兴、TP-Link 等 |
-          | ramips-mt7620 | MediaTek MT7620/MT7628 | 小米路由器 4C、部分 TP-Link 等 |
-          | ath79-generic | Atheros AR71xx/AR9xxx | TP-Link WR842N、NanoStation 等 |
+          | qualcommax-ipq807x | Qualcomm IPQ807x | 小米 AX3600/AX9000、红米 AX6/AX7、华硕 RT-AX89X 等 |
+          | ramips-mt7621 | MediaTek MT7621 | 斐讯 K3、小米路由器 4A、中兴、部分 TP-Link |
+          | ramips-mt7620 | MediaTek MT7620/MT7628 | 小米路由器 4C、部分 TP-Link、水星 MW300R |
+          | ath79-generic | Atheros AR71xx/AR9xxx | TP-Link WR842N、NanoStation、UBNT |
           | bcm27xx-bcm2712 | Broadcom BCM2712 | 树莓派 5 |
-          | mediatek-filogic | MediaTek Filogic (MT7986) | 红米 AX6000、TP-Link XDR6088 等 |
+          | mediatek-filogic | MediaTek Filogic (MT7986) | 红米 AX6000、TP-Link XDR6088、小米 AX6000 |
           
           ### 安装方法
           
@@ -321,7 +321,7 @@ jobs:
           4. 配置参数
           
           ### 本版本更新
-          - 适配 OpenWrt 25.12.x
+          - 适配 OpenWrt 25.12.1
           - 支持主流路由器架构
           - 完整的 RPC 权限配置
           - 改进的错误处理和日志
@@ -345,7 +345,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare.outputs.version }}
-          name: PHTunnel ${{ needs.prepare.outputs.version }} for OpenWrt 25.12.x
+          name: PHTunnel ${{ needs.prepare.outputs.version }} for OpenWrt 25.12.1
           body_path: release_notes.md
           files: release/*
           draft: false
