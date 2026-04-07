@@ -132,7 +132,12 @@ compile_package() {
     local arch_name="$2"
     local cpu_arch="$3"
 
-    local sdk_dir="${WORK_DIR}/${target}/openwrt-sdk-25.12.2-${arch_name}"
+    # Determine SDK directory (special case for x86)
+    if [ "$target" = "x86" ]; then
+        local sdk_dir="${WORK_DIR}/${target}/openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64"
+    else
+        local sdk_dir="${WORK_DIR}/${target}/openwrt-sdk-25.12.2-${target}-${arch_name}_gcc-14.3.0_musl.Linux-x86_64"
+    fi
 
     print_info "配置和编译 ${target}/${arch_name}..."
 
@@ -145,7 +150,8 @@ compile_package() {
 
     # 复制项目文件
     print_info "复制项目文件..."
-    cp -r "${SCRIPT_DIR}"/* package/
+    cp -r "${SCRIPT_DIR}/phtunnel" package/
+    cp -r "${SCRIPT_DIR}/luci-app-phtunnel" package/
 
     # 配置
     print_info "配置编译选项..."
