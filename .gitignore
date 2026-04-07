@@ -1,0 +1,31 @@
+# OpenWrt build files
+openwrt-sdk*/
+sdk.tar.xz
+bin/
+build_*/
+release/
+
+# Editor files
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Compiled binaries
+*.o
+*.a
+*.so
+#phtunnel
+phtunnel_check

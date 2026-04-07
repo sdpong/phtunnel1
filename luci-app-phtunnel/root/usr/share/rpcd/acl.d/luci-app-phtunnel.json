@@ -1,0 +1,19 @@
+{
+	"luci-app-phtunnel": {
+		"description": "Grant access to PHTunnel configuration",
+		"read": {
+			"uci": [ "phtunnel" ],
+			"file": {
+				"/var/log/oraybox/": [ "read" ],
+				"/etc/phtunnel.json": [ "read" ]
+			}
+		},
+		"write": {
+			"uci": [ "phtunnel" ],
+			"file": {
+				"/var/log/oraybox/": [ "write" ],
+				"/etc/phtunnel.json": [ "write" ]
+			}
+		}
+	}
+}

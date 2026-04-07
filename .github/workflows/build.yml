@@ -1,0 +1,342 @@
+name: Build PHTunnel for OpenWrt 25.12.x
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target architecture (leave empty for all)'
+        required: false
+        type: choice
+        options:
+          - all
+          - x86_64
+          - aarch64_cortex-a53
+          - aarch64_generic
+          - arm_cortex-a7
+          - arm_cortex-a9
+          - mips_24kc
+          - mipsel_24kc
+        default: all
+      create_release:
+        description: 'Create GitHub Release after build'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  PKG_NAME: phtunnel
+  LUCI_PKG_NAME: luci-app-phtunnel
+  PKG_VERSION: 1.0.0
+  PKG_RELEASE: 3
+  OPENWRT_VERSION: 25.12.1
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set_matrix.outputs.matrix }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Get version
+        id: get_version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION=${{ env.PKG_VERSION }}-${{ env.PKG_RELEASE }}-$(date +%Y%m%d)
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Set build matrix
+        id: set_matrix
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && [[ "${{ inputs.target }}" != "all" ]]; then
+            echo 'matrix=["${{ inputs.target }}"]' >> $GITHUB_OUTPUT
+          else
+            echo 'matrix=["x86_64","aarch64_cortex-a53","aarch64_generic","arm_cortex-a7","arm_cortex-a9","mips_24kc","mipsel_24kc"]' >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git g++ libelf-dev libncurses5-dev libssl-dev zlib1g-dev
+
+      - name: Get SDK info
+        id: sdk_info
+        run: |
+          case "${{ matrix.arch }}" in
+            x86_64)
+              echo "arch=x86" >> $GITHUB_OUTPUT
+              echo "subarch=x86-64" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=x86_64" >> $GITHUB_OUTPUT
+              ;;
+            aarch64_cortex-a53)
+              echo "arch=aarch64" >> $GITHUB_OUTPUT
+              echo "subarch=cortex-a53" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=aarch64_cortex-a53" >> $GITHUB_OUTPUT
+              ;;
+            aarch64_generic)
+              echo "arch=aarch64" >> $GITHUB_OUTPUT
+              echo "subarch=generic" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=aarch64_generic" >> $GITHUB_OUTPUT
+              ;;
+            arm_cortex-a7)
+              echo "arch=armvirt" >> $GITHUB_OUTPUT
+              echo "subarch=cortex-a7" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=arm_cortex-a7_neon-vfpv4" >> $GITHUB_OUTPUT
+              ;;
+            arm_cortex-a9)
+              echo "arch=armvirt" >> $GITHUB_OUTPUT
+              echo "subarch=cortex-a9" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=arm_cortex-a9" >> $GITHUB_OUTPUT
+              ;;
+            mips_24kc)
+              echo "arch=mips" >> $GITHUB_OUTPUT
+              echo "subarch=24kc" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=mips_24kc" >> $GITHUB_OUTPUT
+              ;;
+            mipsel_24kc)
+              echo "arch=mipsel" >> $GITHUB_OUTPUT
+              echo "subarch=24kc" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=mipsel_24kc" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "Unsupported architecture: ${{ matrix.arch }}"
+              exit 1
+              ;;
+          esac
+          echo "Target architecture: ${{ matrix.arch }}"
+
+      - name: Cache OpenWrt SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            sdk
+            sdk.tar.xz
+          key: sdk-${{ env.OPENWRT_VERSION }}-${{ steps.sdk_info.outputs.arch }}-${{ steps.sdk_info.outputs.subarch }}
+          restore-keys: |
+            sdk-${{ env.OPENWRT_VERSION }}-${{ steps.sdk_info.outputs.arch }}-
+            sdk-${{ env.OPENWRT_VERSION }}-
+
+      - name: Download OpenWrt SDK
+        run: |
+          if [ ! -d "sdk" ]; then
+            echo "Downloading OpenWrt SDK..."
+            
+            SDK_SNAPSHOT="https://downloads.openwrt.org/snapshots/targets/${{ steps.sdk_info.outputs.arch }}/${{ steps.sdk_info.outputs.subarch }}/openwrt-sdk-${{ steps.sdk_info.outputs.arch }}-${{ steps.sdk_info.outputs.sdk_subarch }}_gcc-13_musl.Linux-x86_64.tar.xz"
+            SDK_RELEASE="https://downloads.openwrt.org/releases/${{ env.OPENWRT_VERSION }}/targets/${{ steps.sdk_info.outputs.arch }}/${{ steps.sdk_info.outputs.subarch }}/openwrt-sdk-${{ steps.sdk_info.outputs.arch }}-${{ steps.sdk_info.outputs.sdk_subarch }}_gcc-13_musl.Linux-x86_64.tar.xz"
+            
+            if curl -fL "$SDK_SNAPSHOT" -o sdk.tar.xz 2>/dev/null; then
+              echo "Downloaded snapshot SDK"
+            elif curl -fL "$SDK_RELEASE" -o sdk.tar.xz 2>/dev/null; then
+              echo "Downloaded release SDK"
+            else
+              echo "Failed to download SDK"
+              exit 1
+            fi
+            
+            tar -xf sdk.tar.xz
+            mv openwrt-sdk-* sdk
+          else
+            echo "Using cached SDK"
+          fi
+
+      - name: Setup feeds
+        run: |
+          cd sdk
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Copy packages
+        run: |
+          cp -r luci-app-phtunnel sdk/package/
+          cp -r phtunnel sdk/package/
+
+      - name: Configure build
+        run: |
+          cd sdk
+          make defconfig
+          echo "CONFIG_PACKAGE_phtunnel=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
+          echo "CONFIG_PACKAGE_luci-lib-json=y" >> .config
+          echo "CONFIG_PACKAGE_cgi-io=y" >> .config
+          echo "CONFIG_PACKAGE_curl=y" >> .config
+          make oldconfig
+
+      - name: Build packages
+        run: |
+          cd sdk
+          echo "Building phtunnel package..."
+          make package/phtunnel/compile V=s 2>&1 | tee build.log || true
+          echo "Building luci-app-phtunnel package..."
+          make package/luci-app-phtunnel/compile V=s 2>&1 | tee -a build.log || true
+
+      - name: Collect packages
+        run: |
+          mkdir -p release/${{ matrix.arch }}
+          
+          find sdk/bin/packages -name "*.ipk" -o -name "*.apk" 2>/dev/null | while read pkg; do
+            cp "$pkg" release/${{ matrix.arch }}/
+          done
+          
+          if [ -f "sdk/build.log" ]; then
+            cp sdk/build.log release/${{ matrix.arch }}/
+          fi
+          
+          echo "Packages for ${{ matrix.arch }}:"
+          ls -lh release/${{ matrix.arch }}/ || echo "No packages found"
+
+      - name: Verify packages
+        run: |
+          cd release/${{ matrix.arch }}
+          
+          pkg_count=$(find . -name "*.apk" -o -name "*.ipk" | wc -l)
+          echo "Found $pkg_count package(s)"
+          
+          if [ "$pkg_count" -eq 0 ]; then
+            echo "No packages found!"
+            exit 1
+          fi
+          
+          for pkg in *.apk *.ipk; do
+            if [ -f "$pkg" ]; then
+              echo "Verifying $pkg:"
+              file "$pkg"
+              size=$(stat -c%s "$pkg")
+              echo "  Size: $size bytes"
+              
+              if [ "$size" -lt 1000 ]; then
+                echo "Warning: Package $pkg is suspiciously small"
+              fi
+            fi
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: phtunnel-${{ matrix.arch }}-${{ needs.prepare.outputs.version }}
+          path: release/${{ matrix.arch }}/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Build summary
+        if: always()
+        run: |
+          echo "### Build Summary for ${{ matrix.arch }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "```" >> $GITHUB_STEP_SUMMARY
+          ls -lh release/${{ matrix.arch }}/ 2>/dev/null || echo "No packages found" >> $GITHUB_STEP_SUMMARY
+          echo "```" >> $GITHUB_STEP_SUMMARY
+
+  create_release:
+    needs: [prepare, build]
+    if: |
+      (github.event_name == 'workflow_dispatch' && inputs.create_release == true) ||
+      startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: packages
+
+      - name: Prepare release
+        run: |
+          mkdir -p release
+          
+          find packages -type f \( -name "*.apk" -o -name "*.ipk" \) | while read pkg; do
+            cp "$pkg" release/
+          done
+          
+          echo "Release packages:"
+          ls -lh release/
+
+      - name: Generate release notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          ## PHTunnel ${{ needs.prepare.outputs.version }} for OpenWrt 25.12.x
+          
+          ### 支持的架构
+          - x86_64 - Intel/AMD 64-bit
+          - aarch64_cortex-a53 - ARM 64-bit, Cortex-A53 (树莓派 4)
+          - aarch64_generic - ARM 64-bit, 通用
+          - arm_cortex-a7 - ARM 32-bit, Cortex-A7 (树莓派 2/3)
+          - arm_cortex-a9 - ARM 32-bit, Cortex-A9
+          - mips_24kc - MIPS 32-bit (MT7620/MT7628)
+          - mipsel_24kc - MIPSel 32-bit (MT7620/MT7621)
+          
+          ### 安装方法
+          
+          #### OpenWrt 25.12.x (APK 格式)
+          ```bash
+          apk add phtunnel_*.apk
+          apk add luci-app-phtunnel_*.apk
+          ```
+          
+          ### 配置
+          1. 访问 LuCI: http://路由器IP/cgi-bin/luci
+          2. 进入 服务 → PHTunnel
+          3. 启用服务
+          
+          ### 本版本更新
+          - 适配 OpenWrt 25.12.x
+          - 使用 APK 包格式
+          - 支持多架构编译
+          - 完整的 RPC 权限配置
+          - 改进的错误处理和日志
+          
+          ---
+          
+          ### 包列表
+          EOF
+          
+          for pkg in release/*.apk release/*.ipk; do
+            if [ -f "$pkg" ]; then
+              name=$(basename "$pkg")
+              size=$(stat -c%s "$pkg")
+              size_mb=$(echo "scale=2; $size / 1048576" | bc)
+              echo "- \`$name\` ($size_mb MB)" >> release_notes.md
+            fi
+          done
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.version }}
+          name: PHTunnel ${{ needs.prepare.outputs.version }} for OpenWrt 25.12.x
+          body_path: release_notes.md
+          files: release/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
