@@ -24,9 +24,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential git g++ libelf-dev libncurses5-dev libssl-dev zstd wget
       
+      - name: Verify binary files exist
+        run: |
+          echo "Checking binary files..."
+          for arch_dir in phtunnel/binaries/*/; do
+            if [ -d "$arch_dir" ]; then
+              arch_name=$(basename "$arch_dir")
+              echo "Found binary directory: $arch_name"
+              ls -lh "$arch_dir" || echo "Empty directory"
+            fi
+          done
+      
       - name: Build all architectures
         run: |
-          # Define architectures with correct SDK paths
+          set -e  # Exit on error
+          
+          # Define architectures with correct SDK paths and binary mappings
           declare -A ARCH_MAP
           ARCH_MAP[qualcommax]="qualcommax:ipq807x:aarch64"
           ARCH_MAP[x86_64]="x86:64:x86_64"
@@ -44,12 +57,19 @@ jobs:
           echo ""
           
           for arch_key in "${!ARCH_MAP[@]}"; do
-            IFS=':' read -r target arch_name cpu <<< "${ARCH_MAP[$arch_key]}"
+            IFS=':' read -r target arch_name binary_dir <<< "${ARCH_MAP[$arch_key]}"
             
-            echo "Building $arch_key ($target/$arch_name, $cpu)..."
+            echo "Building $arch_key ($target/$arch_name, binary: $binary_dir)..."
             
             WORK_DIR="$BUILD_DIR/$arch_key"
             mkdir -p "$WORK_DIR"
+            
+            # Check if binary exists
+            if [ ! -f "phtunnel/binaries/$binary_dir/phtunnel" ]; then
+              echo "ERROR: Binary not found: phtunnel/binaries/$binary_dir/phtunnel"
+              echo "Skipping $arch_key..."
+              continue
+            fi
             
             SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${target}/${arch_name}/openwrt-sdk-25.12.2-${arch_name}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
             echo "SDK URL: $SDK_URL"
@@ -58,7 +78,20 @@ jobs:
             cd "$WORK_DIR"
             if [ ! -f "sdk.tar.zst" ]; then
               echo "Downloading SDK..."
-              curl -L "$SDK_URL" -o sdk.tar.zst
+              if ! curl -fL "$SDK_URL" -o sdk.tar.zst; then
+                echo "ERROR: Failed to download SDK for $arch_key"
+                echo "Skipping $arch_key..."
+                cd ../..
+                continue
+              fi
+              
+              # Verify download
+              if [ ! -s "sdk.tar.zst" ]; then
+                echo "ERROR: Downloaded SDK is empty for $arch_key"
+                echo "Skipping $arch_key..."
+                cd ../..
+                continue
+              fi
             else
               echo "SDK already downloaded"
             fi
@@ -66,8 +99,28 @@ jobs:
             # Extract SDK
             if [ ! -d "openwrt-sdk-25.12.2-${arch_name}" ]; then
               echo "Extracting SDK with zstd..."
-              zstd -d sdk.tar.zst -o sdk.tar
-              tar -xf sdk.tar
+              if ! zstd -d sdk.tar.zst -o sdk.tar; then
+                echo "ERROR: Failed to decompress SDK for $arch_key"
+                echo "Skipping $arch_key..."
+                cd ../..
+                continue
+              fi
+              
+              if ! tar -xf sdk.tar; then
+                echo "ERROR: Failed to extract SDK for $arch_key"
+                echo "Skipping $arch_key..."
+                cd ../..
+                continue
+              fi
+              
+              # Verify extraction
+              if [ ! -d "openwrt-sdk-25.12.2-${arch_name}" ]; then
+                echo "ERROR: SDK extraction failed for $arch_key"
+                echo "Skipping $arch_key..."
+                cd ../..
+                continue
+              fi
+              
               echo "SDK extracted successfully"
             else
               echo "SDK already extracted"
@@ -86,8 +139,24 @@ jobs:
             
             # Copy package files
             echo "Copying package files..."
-            cp -r ../../phtunnel package/
-            cp -r ../../luci-app-phtunnel package/
+            mkdir -p package/phtunnel
+            cp -r ../../phtunnel/* package/phtunnel/
+            
+            # Copy correct binary for this architecture
+            echo "Copying binary for $arch_key..."
+            mkdir -p package/phtunnel/binaries
+            cp "../../phtunnel/binaries/$binary_dir/phtunnel" package/phtunnel/binaries/phtunnel
+            chmod +x package/phtunnel/binaries/phtunnel
+            
+            # Verify binary was copied
+            if [ ! -f "package/phtunnel/binaries/phtunnel" ]; then
+              echo "ERROR: Failed to copy binary for $arch_key"
+              cd ../..
+              continue
+            fi
+            
+            echo "Binary copied successfully"
+            ls -lh package/phtunnel/binaries/phtunnel
             
             # Configure build
             echo "Configuring build..."
@@ -102,25 +171,35 @@ jobs:
             # Build phtunnel
             echo "Building phtunnel package..."
             export CONFIG_USE_APK=y
-            make package/phtunnel/compile V=s || echo "Build may have warnings but continuing..."
+            if ! make package/phtunnel/compile V=s; then
+              echo "WARNING: phtunnel build may have had issues, checking for output..."
+            fi
             
             # Build luci-app-phtunnel
             echo "Building luci-app-phtunnel package..."
             export CONFIG_USE_APK=y
-            make package/luci-app-phtunnel/compile V=s || echo "Build may have warnings but continuing..."
+            if ! make package/luci-app-phtunnel/compile V=s; then
+              echo "WARNING: luci-app-phtunnel build may have had issues, checking for output..."
+            fi
             
             # Find and copy APKs
             echo "Finding APK packages..."
             mkdir -p "../apks_$arch_key"
-            find bin/packages -name "*.apk" -exec cp {} ../apks_$arch_key/ \;
+            find bin/packages -name "*.apk" -exec cp {} ../apks_$arch_key/ \; 2>/dev/null || true
             
             echo "APK packages for $arch_key:"
             ls -lh ../apks_$arch_key/ 2>/dev/null || echo "No APKs found"
+            
+            if [ -z "$(ls -A ../apks_$arch_key/ 2>/dev/null)" ]; then
+              echo "WARNING: No APK packages found for $arch_key"
+            fi
+            
             echo ""
             
             # Clean up SDK
             cd ..
             rm -rf "openwrt-sdk-25.12.2-${arch_name}"
+            cd ../..
           done
           
           echo "=== All architectures built ==="
@@ -148,6 +227,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Check if we have any APKs
+          APK_COUNT=$(find apks_all -name '*.apk' | wc -l)
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "ERROR: No APK packages found to create release"
+            exit 1
+          fi
+          
           # Create release notes
           cat > release_notes.md << 'EOF'
           ## PHTunnel v1.0.0-2 - OpenWrt 25.12.x Multi-Architecture APK Packages
