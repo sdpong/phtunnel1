@@ -80,7 +80,18 @@ jobs:
               continue
             fi
             
-            SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${target}/${arch_name}/openwrt-sdk-25.12.2-${arch_name}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+            # Skip rockchip as no SDK is available
+            if [ "$arch_key" = "rockchip" ]; then
+              echo "WARNING: No SDK available for rockchip/generic, skipping..."
+              continue
+            fi
+            
+            # Determine SDK filename (special case for x86)
+            if [ "$target" = "x86" ]; then
+              SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${target}/${arch_name}/openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+            else
+              SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${target}/${arch_name}/openwrt-sdk-25.12.2-${target}-${arch_name}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+            fi
             echo "SDK URL: $SDK_URL"
             
             # Download SDK
@@ -105,8 +116,15 @@ jobs:
               echo "SDK already downloaded"
             fi
             
+            # Determine SDK extraction directory
+            if [ "$target" = "x86" ]; then
+              SDK_DIR="openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64"
+            else
+              SDK_DIR="openwrt-sdk-25.12.2-${target}-${arch_name}_gcc-14.3.0_musl.Linux-x86_64"
+            fi
+            
             # Extract SDK
-            if [ ! -d "openwrt-sdk-25.12.2-${arch_name}" ]; then
+            if [ ! -d "$SDK_DIR" ]; then
               echo "Extracting SDK with zstd..."
               if ! zstd -d sdk.tar.zst -o sdk.tar; then
                 echo "ERROR: Failed to decompress SDK for $arch_key"
@@ -123,7 +141,7 @@ jobs:
               fi
               
               # Verify extraction
-              if [ ! -d "openwrt-sdk-25.12.2-${arch_name}" ]; then
+              if [ ! -d "$SDK_DIR" ]; then
                 echo "ERROR: SDK extraction failed for $arch_key"
                 echo "Skipping $arch_key..."
                 cd ../..
@@ -136,7 +154,7 @@ jobs:
             fi
             
             # Setup SDK
-            cd "openwrt-sdk-25.12.2-${arch_name}"
+            cd "$SDK_DIR"
             
             # Enable APK format
             echo "CONFIG_USE_APK=y" >> .config
@@ -207,7 +225,7 @@ jobs:
             
             # Clean up SDK
             cd ..
-            rm -rf "openwrt-sdk-25.12.2-${arch_name}"
+            rm -rf "$SDK_DIR"
             cd ../..
           done
           

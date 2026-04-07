@@ -89,9 +89,16 @@ download_sdk() {
 
     print_info "下载 OpenWrt 25.12.2 SDK for ${target}/${arch_name}..."
 
-    local sdk_url="https://downloads.openwrt.org/releases/25.12.2/targets/${target}/${arch_name}/openwrt-sdk-25.12.2-${arch_name}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
-    local sdk_file="openwrt-sdk-25.12.2-${arch_name}.tar.zst"
-    local sdk_dir="openwrt-sdk-25.12.2-${arch_name}"
+    # Special case for x86 to use correct SDK filename
+    if [ "$target" = "x86" ]; then
+        local sdk_url="https://downloads.openwrt.org/releases/25.12.2/targets/${target}/${arch_name}/openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+        local sdk_file="openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+        local sdk_dir="openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64"
+    else
+        local sdk_url="https://downloads.openwrt.org/releases/25.12.2/targets/${target}/${arch_name}/openwrt-sdk-25.12.2-${target}-${arch_name}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+        local sdk_file="openwrt-sdk-25.12.2-${target}-${arch_name}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+        local sdk_dir="openwrt-sdk-25.12.2-${target}-${arch_name}_gcc-14.3.0_musl.Linux-x86_64"
+    fi
 
     # 创建输出目录
     mkdir -p "${WORK_DIR}/${target}"
@@ -234,6 +241,11 @@ main() {
         print_info "开始编译所有架构..."
         for arch in "${ARCHITECTURES[@]}"; do
             IFS=':' read -r target arch_name cpu <<< "$arch"
+            # Skip rockchip as no SDK is available
+            if [ "$target" = "rockchip" ]; then
+                print_warning "跳过 rockchip (无可用 SDK)"
+                continue
+            fi
             download_sdk "$target" "$arch_name"
             compile_package "$target" "$arch_name" "$cpu"
         done
