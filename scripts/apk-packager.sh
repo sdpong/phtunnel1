@@ -1,6 +1,6 @@
 #!/bin/bash
 # APK Packager for OpenWrt 25.12.x
-# This script creates valid APK packages from OpenWrt build output
+# This script creates valid APK packages using OpenWrt's apk mkpkg tool
 
 set -e
 
@@ -20,6 +20,13 @@ fi
 
 OUTPUT_DIR="${OUTPUT_DIR:-$BUILD_DIR/apk}"
 
+# Check if apk tool is available
+if ! command -v apk &> /dev/null; then
+    echo "Error: 'apk' command not found. This script requires OpenWrt's apk tool."
+    echo "Please ensure you are running within OpenWrt SDK environment."
+    exit 1
+fi
+
 # Create working directory
 WORKDIR=$(mktemp -d)
 trap "rm -rf $WORKDIR" EXIT
@@ -27,29 +34,38 @@ trap "rm -rf $WORKDIR" EXIT
 # Copy package files to workdir
 APK_INSTALL_DIR="$WORKDIR/apk-root"
 mkdir -p "$APK_INSTALL_DIR"
-cp -r "$BUILD_DIR"/. "$APK_INSTALL_DIR/"
+if [ -d "$BUILD_DIR" ]; then
+    cp -r "$BUILD_DIR"/. "$APK_INSTALL_DIR/"
+fi
 
-# Calculate package size
-PKG_SIZE=$(du -sb "$APK_INSTALL_DIR" | cut -f1)
-BUILD_DATE=$(date -u +%Y%m%d%H%M%S)
+# Ensure proper directory structure
+mkdir -p "$APK_INSTALL_DIR/lib/apk/packages"
 
-# Generate .PKGINFO
-cat > "$WORKDIR/.PKGINFO" << EOF
-pkgname = $PKG_NAME
-pkgver = ${PKG_VERSION}-r${PKG_RELEASE}
-pkgdesc = PHTunnel is core component of HSK intranet penetration, supports TCP, HTTP, HTTPS protocols
-url = https://hsk.oray.com/
-builddate = $BUILD_DATE
-packager = OpenWrt Build System
-size = $PKG_SIZE
-arch = $PKG_ARCH
-license = Proprietary
-maintainer = Oray <developer@oray.com>
-origin = openwrt
+# Generate package list
+(cd "$APK_INSTALL_DIR" && find . -type f,l -printf "/%P\n" | sort > "$WORKDIR/package.list")
+
+# Create .PKGINFO format (compatible with OpenWrt 25.12.x)
+BUILD_DATE=$(date -u +%s)
+
+# Generate control information
+CONTROL_DIR="$WORKDIR/control"
+mkdir -p "$CONTROL_DIR"
+
+cat > "$CONTROL_DIR/control" << EOF
+Package: ${PKG_NAME}
+Version: ${PKG_VERSION}-${PKG_RELEASE}
+Description: PHTunnel is core component of HSK intranet penetration, supports TCP, HTTP, HTTPS protocols
+Section: net
+Priority: optional
+Maintainer: Oray <developer@oray.com>
+License: Proprietary
+Architecture: ${PKG_ARCH}
+Homepage: https://hsk.oray.com/
+Depends: libc, libpthread, librt
 EOF
 
-# Generate .pre-install script
-cat > "$WORKDIR/.pre-install" << 'EOF'
+# Generate pre-install script
+cat > "$CONTROL_DIR/pre-install" << 'EOF'
 #!/bin/sh
 # Stop running service if present
 if [ -f /etc/init.d/phtunnel ]; then
@@ -58,8 +74,8 @@ fi
 exit 0
 EOF
 
-# Generate .post-install script
-cat > "$WORKDIR/.post-install" << 'EOF'
+# Generate post-install script
+cat > "$CONTROL_DIR/post-install" << 'EOF'
 #!/bin/sh
 # Enable service
 if [ -f /etc/init.d/phtunnel ]; then
@@ -68,23 +84,73 @@ fi
 exit 0
 EOF
 
-# Make scripts executable
-chmod +x "$WORKDIR/.pre-install" "$WORKDIR/.post-install"
+# Generate pre-upgrade script
+cat > "$CONTROL_DIR/pre-upgrade" << 'EOF'
+#!/bin/sh
+# Stop running service if present
+if [ -f /etc/init.d/phtunnel ]; then
+    /etc/init.d/phtunnel stop >/dev/null 2>&1 || true
+fi
+exit 0
+EOF
 
-# Create APK package (tar.gz format)
-APK_FILE="${OUTPUT_DIR}/${PKG_NAME}_${PKG_VERSION}-r${PKG_RELEASE}_${PKG_ARCH}.apk"
+# Generate post-upgrade script
+cat > "$CONTROL_DIR/post-upgrade" << 'EOF'
+#!/bin/sh
+# Enable service
+if [ -f /etc/init.d/phtunnel ]; then
+    /etc/init.d/phtunnel enable
+fi
+exit 0
+EOF
+
+# Generate pre-deinstall script
+cat > "$CONTROL_DIR/pre-deinstall" << 'EOF'
+#!/bin/sh
+# Stop running service if present
+if [ -f /etc/init.d/phtunnel ]; then
+    /etc/init.d/phtunnel stop >/dev/null 2>&1 || true
+fi
+exit 0
+EOF
+
+# Make scripts executable
+chmod +x "$CONTROL_DIR/"*
+
+# Create output directory
 mkdir -p "$OUTPUT_DIR"
 
-# Create directory structure for apk
-cd "$WORKDIR"
-mkdir -p "$(basename "$APK_FILE" .apk)"
-mv .PKGINFO "$(basename "$APK_FILE" .apk)/"
-mv .pre-install "$(basename "$APK_FILE" .apk)/"
-mv .post-install "$(basename "$APK_FILE" .apk)/"
-cp -r apk-root/* "$(basename "$APK_FILE" .apk)/"
+# Build APK package using OpenWrt's apk mkpkg
+APK_FILE="${OUTPUT_DIR}/${PKG_NAME}-${PKG_VERSION}-r${PKG_RELEASE}_${PKG_ARCH}.apk"
 
-# Create the APK file
-tar -czf "$(basename "$APK_FILE")" "$(basename "$APK_FILE" .apk)"
-mv "$(basename "$APK_FILE")" "$(basename "$APK_FILE")" "$OUTPUT_DIR/"
+echo "Building APK package using apk mkpkg..."
+apk mkpkg \
+  --info "name:${PKG_NAME}" \
+  --info "version:${PKG_VERSION}-r${PKG_RELEASE}" \
+  --info "description:PHTunnel is core component of HSK intranet penetration, supports TCP, HTTP, HTTPS protocols" \
+  --info "arch:${PKG_ARCH}" \
+  --info "license:Proprietary" \
+  --info "origin:openwrt" \
+  --info "url:https://hsk.oray.com/" \
+  --info "maintainer:Oray <developer@oray.com>" \
+  --info "depends:libc,libpthread,librt" \
+  --script "pre-install:${CONTROL_DIR}/pre-install" \
+  --script "post-install:${CONTROL_DIR}/post-install" \
+  --script "pre-upgrade:${CONTROL_DIR}/pre-upgrade" \
+  --script "post-upgrade:${CONTROL_DIR}/post-upgrade" \
+  --script "pre-deinstall:${CONTROL_DIR}/pre-deinstall" \
+  --files "$APK_INSTALL_DIR" \
+  --output "$APK_FILE"
 
-echo "APK package created: $APK_FILE"
+if [ -f "$APK_FILE" ]; then
+    echo "✓ APK package created successfully: $APK_FILE"
+    ls -lh "$APK_FILE"
+else
+    echo "✗ Failed to create APK package"
+    exit 1
+fi
+
+# Verify APK package
+echo "Verifying APK package..."
+apk info --file "$APK_FILE" || true
+echo "✓ APK package verified"
