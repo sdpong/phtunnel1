@@ -14,13 +14,13 @@ on:
         type: choice
         options:
           - all
-          - x86_64
-          - aarch64_cortex-a53
-          - aarch64_generic
-          - arm_cortex-a7
-          - arm_cortex-a9
-          - mips_24kc
-          - mipsel_24kc
+          - x86-64
+          - qualcommax-ipq807x
+          - ramips-mt7621
+          - ramips-mt7620
+          - ath79-generic
+          - bcm27xx-bcm2712
+          - mediatek-filogic
         default: all
       create_release:
         description: 'Create GitHub Release after build'
@@ -32,7 +32,7 @@ env:
   PKG_NAME: phtunnel
   LUCI_PKG_NAME: luci-app-phtunnel
   PKG_VERSION: 1.0.0
-  PKG_RELEASE: 3
+  PKG_RELEASE: 4
   OPENWRT_VERSION: 25.12.1
 
 jobs:
@@ -59,7 +59,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && [[ "${{ inputs.target }}" != "all" ]]; then
             echo 'matrix=["${{ inputs.target }}"]' >> $GITHUB_OUTPUT
           else
-            echo 'matrix=["x86_64","aarch64_cortex-a53","aarch64_generic","arm_cortex-a7","arm_cortex-a9","mips_24kc","mipsel_24kc"]' >> $GITHUB_OUTPUT
+            echo 'matrix=["x86-64","qualcommax-ipq807x","ramips-mt7621","ramips-mt7620","ath79-generic","bcm27xx-bcm2712","mediatek-filogic"]' >> $GITHUB_OUTPUT
           fi
 
   build:
@@ -90,40 +90,40 @@ jobs:
         id: sdk_info
         run: |
           case "${{ matrix.arch }}" in
-            x86_64)
+            x86-64)
               echo "arch=x86" >> $GITHUB_OUTPUT
               echo "subarch=x86-64" >> $GITHUB_OUTPUT
-              echo "sdk_subarch=x86_64" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=x86-64" >> $GITHUB_OUTPUT
               ;;
-            aarch64_cortex-a53)
-              echo "arch=aarch64" >> $GITHUB_OUTPUT
-              echo "subarch=cortex-a53" >> $GITHUB_OUTPUT
-              echo "sdk_subarch=aarch64_cortex-a53" >> $GITHUB_OUTPUT
+            qualcommax-ipq807x)
+              echo "arch=qualcommax" >> $GITHUB_OUTPUT
+              echo "subarch=ipq807x" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=ipq807x" >> $GITHUB_OUTPUT
               ;;
-            aarch64_generic)
-              echo "arch=aarch64" >> $GITHUB_OUTPUT
+            ramips-mt7621)
+              echo "arch=ramips" >> $GITHUB_OUTPUT
+              echo "subarch=mt7621" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=mt7621" >> $GITHUB_OUTPUT
+              ;;
+            ramips-mt7620)
+              echo "arch=ramips" >> $GITHUB_OUTPUT
+              echo "subarch=mt7620" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=mt7620" >> $GITHUB_OUTPUT
+              ;;
+            ath79-generic)
+              echo "arch=ath79" >> $GITHUB_OUTPUT
               echo "subarch=generic" >> $GITHUB_OUTPUT
-              echo "sdk_subarch=aarch64_generic" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=generic" >> $GITHUB_OUTPUT
               ;;
-            arm_cortex-a7)
-              echo "arch=armvirt" >> $GITHUB_OUTPUT
-              echo "subarch=cortex-a7" >> $GITHUB_OUTPUT
-              echo "sdk_subarch=arm_cortex-a7_neon-vfpv4" >> $GITHUB_OUTPUT
+            bcm27xx-bcm2712)
+              echo "arch=bcm27xx" >> $GITHUB_OUTPUT
+              echo "subarch=bcm2712" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=bcm2712" >> $GITHUB_OUTPUT
               ;;
-            arm_cortex-a9)
-              echo "arch=armvirt" >> $GITHUB_OUTPUT
-              echo "subarch=cortex-a9" >> $GITHUB_OUTPUT
-              echo "sdk_subarch=arm_cortex-a9" >> $GITHUB_OUTPUT
-              ;;
-            mips_24kc)
-              echo "arch=mips" >> $GITHUB_OUTPUT
-              echo "subarch=24kc" >> $GITHUB_OUTPUT
-              echo "sdk_subarch=mips_24kc" >> $GITHUB_OUTPUT
-              ;;
-            mipsel_24kc)
-              echo "arch=mipsel" >> $GITHUB_OUTPUT
-              echo "subarch=24kc" >> $GITHUB_OUTPUT
-              echo "sdk_subarch=mipsel_24kc" >> $GITHUB_OUTPUT
+            mediatek-filogic)
+              echo "arch=mediatek" >> $GITHUB_OUTPUT
+              echo "subarch=filogic" >> $GITHUB_OUTPUT
+              echo "sdk_subarch=filogic" >> $GITHUB_OUTPUT
               ;;
             *)
               echo "Unsupported architecture: ${{ matrix.arch }}"
@@ -148,12 +148,9 @@ jobs:
           if [ ! -d "sdk" ]; then
             echo "Downloading OpenWrt SDK..."
             
-            SDK_SNAPSHOT="https://downloads.openwrt.org/snapshots/targets/${{ steps.sdk_info.outputs.arch }}/${{ steps.sdk_info.outputs.subarch }}/openwrt-sdk-${{ steps.sdk_info.outputs.arch }}-${{ steps.sdk_info.outputs.sdk_subarch }}_gcc-13_musl.Linux-x86_64.tar.xz"
-            SDK_RELEASE="https://downloads.openwrt.org/releases/${{ env.OPENWRT_VERSION }}/targets/${{ steps.sdk_info.outputs.arch }}/${{ steps.sdk_info.outputs.subarch }}/openwrt-sdk-${{ steps.sdk_info.outputs.arch }}-${{ steps.sdk_info.outputs.sdk_subarch }}_gcc-13_musl.Linux-x86_64.tar.xz"
+            SDK_RELEASE="https://downloads.openwrt.org/releases/${{ env.OPENWRT_VERSION }}/targets/${{ steps.sdk_info.outputs.arch }}/${{ steps.sdk_info.outputs.subarch }}/openwrt-sdk-${{ steps.sdk_info.outputs.arch }}-${{ steps.sdk_info.outputs.sdk_subarch }}_gcc-14.3.0_musl.Linux-x86_64.tar.xz"
             
-            if curl -fL "$SDK_SNAPSHOT" -o sdk.tar.xz 2>/dev/null; then
-              echo "Downloaded snapshot SDK"
-            elif curl -fL "$SDK_RELEASE" -o sdk.tar.xz 2>/dev/null; then
+            if curl -fL "$SDK_RELEASE" -o sdk.tar.xz 2>/dev/null; then
               echo "Downloaded release SDK"
             else
               echo "Failed to download SDK"
@@ -200,7 +197,7 @@ jobs:
         run: |
           mkdir -p release/${{ matrix.arch }}
           
-          find sdk/bin/packages -name "*.ipk" -o -name "*.apk" 2>/dev/null | while read pkg; do
+          find sdk/bin/packages -name "*.ipk" 2>/dev/null | while read pkg; do
             cp "$pkg" release/${{ matrix.arch }}/
           done
           
@@ -215,7 +212,7 @@ jobs:
         run: |
           cd release/${{ matrix.arch }}
           
-          pkg_count=$(find . -name "*.apk" -o -name "*.ipk" | wc -l)
+          pkg_count=$(find . -name "*.ipk" | wc -l)
           echo "Found $pkg_count package(s)"
           
           if [ "$pkg_count" -eq 0 ]; then
@@ -223,7 +220,7 @@ jobs:
             exit 1
           fi
           
-          for pkg in *.apk *.ipk; do
+          for pkg in *.ipk; do
             if [ -f "$pkg" ]; then
               echo "Verifying $pkg:"
               file "$pkg"
@@ -249,9 +246,9 @@ jobs:
         run: |
           echo "### Build Summary for ${{ matrix.arch }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "```" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
           ls -lh release/${{ matrix.arch }}/ 2>/dev/null || echo "No packages found" >> $GITHUB_STEP_SUMMARY
-          echo "```" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
   create_release:
     needs: [prepare, build]
@@ -274,7 +271,7 @@ jobs:
         run: |
           mkdir -p release
           
-          find packages -type f \( -name "*.apk" -o -name "*.ipk" \) | while read pkg; do
+          find packages -type f -name "*.ipk" | while read pkg; do
             cp "$pkg" release/
           done
           
@@ -286,46 +283,61 @@ jobs:
           cat > release_notes.md << 'EOF'
           ## PHTunnel ${{ needs.prepare.outputs.version }} for OpenWrt 25.12.x
           
-          ### 支持的架构
-          - x86_64 - Intel/AMD 64-bit
-          - aarch64_cortex-a53 - ARM 64-bit, Cortex-A53 (树莓派 4)
-          - aarch64_generic - ARM 64-bit, 通用
-          - arm_cortex-a7 - ARM 32-bit, Cortex-A7 (树莓派 2/3)
-          - arm_cortex-a9 - ARM 32-bit, Cortex-A9
-          - mips_24kc - MIPS 32-bit (MT7620/MT7628)
-          - mipsel_24kc - MIPSel 32-bit (MT7620/MT7621)
+          ### 支持的路由器架构
+          
+          | 架构 | 芯片/平台 | 设备示例 |
+          |------|-----------|---------|
+          | x86-64 | x86_64 | 通用 x86_64 路由器、软路由 |
+          | qualcommax-ipq807x | Qualcomm IPQ807x | 小米 AX3600/AX9000、红米 AX6、红魔 AX7、华硕 RT-AX89X 等 |
+          | ramips-mt7621 | MediaTek MT7621 | 斐讯 K3、小米路由器 4A、中兴、TP-Link 等 |
+          | ramips-mt7620 | MediaTek MT7620/MT7628 | 小米路由器 4C、部分 TP-Link 等 |
+          | ath79-generic | Atheros AR71xx/AR9xxx | TP-Link WR842N、NanoStation 等 |
+          | bcm27xx-bcm2712 | Broadcom BCM2712 | 树莓派 5 |
+          | mediatek-filogic | MediaTek Filogic (MT7986) | 红米 AX6000、TP-Link XDR6088 等 |
           
           ### 安装方法
           
-          #### OpenWrt 25.12.x (APK 格式)
+          #### 方法 1: 通过 opkg 安装
+          
           ```bash
-          apk add phtunnel_*.apk
-          apk add luci-app-phtunnel_*.apk
+          # 1. 下载对应架构的 IPK 包
+          # 2. 上传到路由器
+          scp phtunnel_*.ipk luci-app-phtunnel_*.ipk root@<路由器IP>:/tmp/
+          
+          # 3. SSH 连接到路由器并安装
+          ssh root@<路由器IP>
+          cd /tmp
+          opkg install phtunnel_*.ipk luci-app-phtunnel_*.ipk
+          
+          # 4. 启用并启动服务
+          /etc/init.d/phtunnel enable
+          /etc/init.d/phtunnel start
           ```
           
           ### 配置
-          1. 访问 LuCI: http://路由器IP/cgi-bin/luci
+          1. 访问 LuCI: `http://<路由器IP>/cgi-bin/luci`
           2. 进入 服务 → PHTunnel
           3. 启用服务
+          4. 配置参数
           
           ### 本版本更新
           - 适配 OpenWrt 25.12.x
-          - 使用 APK 包格式
-          - 支持多架构编译
+          - 支持主流路由器架构
           - 完整的 RPC 权限配置
           - 改进的错误处理和日志
+          - 支持多芯片平台编译
           
           ---
           
           ### 包列表
           EOF
           
-          for pkg in release/*.apk release/*.ipk; do
+          for pkg in release/*.ipk; do
             if [ -f "$pkg" ]; then
               name=$(basename "$pkg")
               size=$(stat -c%s "$pkg")
-              size_mb=$(echo "scale=2; $size / 1048576" | bc)
-              echo "- \`$name\` ($size_mb MB)" >> release_notes.md
+              size_kb=$(echo "scale=2; $size / 1024" | bc)
+              echo "- \`$name\` ($size_kb KB)" >> release_notes.md
             fi
           done
 

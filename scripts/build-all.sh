@@ -2,18 +2,17 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="${VERSION:-1.0.0-3}"
-RELEASE="${RELEASE:-3}"
+VERSION="${VERSION:-1.0.0-4}"
 SDK_DIR="${SDK_DIR:-./openwrt-sdk}"
 
 ARCHS=(
-    "x86_64|x86|x86-64|x86_64"
-    "aarch64_cortex-a53|aarch64|cortex-a53|aarch64_cortex-a53"
-    "aarch64_generic|aarch64|generic|aarch64_generic"
-    "arm_cortex-a7|armvirt|cortex-a7|arm_cortex-a7_neon-vfpv4"
-    "arm_cortex-a9|armvirt|cortex-a9|arm_cortex-a9"
-    "mips_24kc|mips|24kc|mips_24kc"
-    "mipsel_24kc|mipsel|24kc|mipsel_24kc"
+    "x86-64|x86|x86-64|x86-64"
+    "qualcommax-ipq807x|qualcommax|ipq807x|ipq807x"
+    "ramips-mt7621|ramips|mt7621|mt7621"
+    "ramips-mt7620|ramips|mt7620|mt7620"
+    "ath79-generic|ath79|generic|generic"
+    "bcm27xx-bcm2712|bcm27xx|bcm2712|bcm2712"
+    "mediatek-filogic|mediatek|filogic|filogic"
 )
 
 show_usage() {
@@ -22,17 +21,22 @@ Usage: $0 [OPTIONS]
 
 Options:
   -a, --arch ARCH    Build specific architecture only
-  -v, --version VER  Set version (default: 1.0.0-3)
+  -v, --version VER  Set version (default: 1.0.0-4)
   -s, --sdk DIR      OpenWrt SDK directory
   -h, --help         Show this help message
 
 Architectures:
-  x86_64, aarch64_cortex-a53, aarch64_generic,
-  arm_cortex-a7, arm_cortex-a9, mips_24kc, mipsel_24kc
+  x86-64              - Generic x86_64 routers
+  qualcommax-ipq807x - Qualcomm IPQ807x (小米 AX3600/AX9000, 红米 AX6, 华硕 RT-AX89X 等)
+  ramips-mt7621       - MediaTek MT7621 (斐讯 K3, 小米路由器 4A, TP-Link 等)
+  ramips-mt7620       - MediaTek MT7620/MT7628 (小米路由器 4C 等)
+  ath79-generic       - Atheros AR71xx/AR9xxx (TP-Link WR842N, NanoStation 等)
+  bcm27xx-bcm2712    - Broadcom BCM2712 (树莓派 5)
+  mediatek-filogic    - MediaTek Filogic MT7986 (红米 AX6000, TP-Link XDR6088 等)
 
 Examples:
   $0                          # Build all architectures
-  $0 -a x86_64               # Build only x86_64
+  $0 -a x86-64               # Build only x86-64
   $0 -v 1.1.0-1              # Build version 1.1.0-1
   $0 -s ./openwrt-sdk-x86_64 # Use specific SDK
 
@@ -44,7 +48,7 @@ download_sdk() {
     local subarch="$2"
     local sdk_subarch="$3"
     
-    local sdk_name="openwrt-sdk-${arch}-${sdk_subarch}_gcc-13_musl.Linux-x86_64"
+    local sdk_name="openwrt-sdk-${arch}-${sdk_subarch}_gcc-14.3.0_musl.Linux-x86_64"
     local sdk_url="https://downloads.openwrt.org/releases/25.12.1/targets/${arch}/${subarch}/${sdk_name}.tar.xz"
     
     if [ -d "$SDK_DIR" ]; then
@@ -104,7 +108,7 @@ build_package() {
     
     echo "Collecting packages..."
     mkdir -p "../release"
-    find bin/packages -name "*.ipk" -o -name "*.apk" | while read pkg; do
+    find bin/packages -name "*.ipk" | while read pkg; do
         cp "$pkg" "../release/"
     done
     
