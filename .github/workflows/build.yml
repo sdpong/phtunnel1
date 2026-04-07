@@ -6,8 +6,17 @@ on:
       target:
         description: 'Target architecture'
         required: true
-        type: string
+        type: choice
         default: 'all'
+        options:
+          - 'all'
+          - 'qualcommax'
+          - 'x86_64'
+          - 'mediatek'
+          - 'ramips'
+          - 'ath79'
+          - 'rockchip'
+          - 'bcm27xx'
 
 jobs:
   build:
