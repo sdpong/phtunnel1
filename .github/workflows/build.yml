@@ -137,7 +137,7 @@ jobs:
         with:
           path: |
             sdk
-            sdk.tar.xz
+            sdk.tar.zst
           key: sdk-${{ env.OPENWRT_VERSION }}-${{ steps.sdk_info.outputs.arch }}-${{ steps.sdk_info.outputs.subarch }}
           restore-keys: |
             sdk-${{ env.OPENWRT_VERSION }}-${{ steps.sdk_info.outputs.arch }}-
@@ -148,16 +148,16 @@ jobs:
           if [ ! -d "sdk" ]; then
             echo "Downloading OpenWrt SDK..."
             
-            SDK_RELEASE="https://downloads.openwrt.org/releases/${{ env.OPENWRT_VERSION }}/targets/${{ steps.sdk_info.outputs.arch }}/${{ steps.sdk_info.outputs.subarch }}/openwrt-sdk-${{ steps.sdk_info.outputs.arch }}-${{ steps.sdk_info.outputs.sdk_subarch }}_gcc-14.3.0_musl.Linux-x86_64.tar.xz"
+            SDK_RELEASE="https://downloads.openwrt.org/releases/${{ env.OPENWRT_VERSION }}/targets/${{ steps.sdk_info.outputs.arch }}/${{ steps.sdk_info.outputs.subarch }}/openwrt-sdk-${{ steps.sdk_info.outputs.arch }}-${{ steps.sdk_info.outputs.sdk_subarch }}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
             
-            if curl -fL "$SDK_RELEASE" -o sdk.tar.xz 2>/dev/null; then
+            if curl -fL "$SDK_RELEASE" -o sdk.tar.zst 2>/dev/null; then
               echo "Downloaded release SDK"
             else
               echo "Failed to download SDK"
               exit 1
             fi
             
-            tar -xf sdk.tar.xz
+            tar -xf sdk.tar.zst
             mv openwrt-sdk-* sdk
           else
             echo "Using cached SDK"

@@ -49,7 +49,7 @@ download_sdk() {
     local sdk_subarch="$3"
     
     local sdk_name="openwrt-sdk-${arch}-${sdk_subarch}_gcc-14.3.0_musl.Linux-x86_64"
-    local sdk_url="https://downloads.openwrt.org/releases/25.12.1/targets/${arch}/${subarch}/${sdk_name}.tar.xz"
+    local sdk_url="https://downloads.openwrt.org/releases/25.12.1/targets/${arch}/${subarch}/${sdk_name}.tar.zst"
     
     if [ -d "$SDK_DIR" ]; then
         echo "Using existing SDK: $SDK_DIR"
@@ -58,8 +58,8 @@ download_sdk() {
     
     echo "Downloading SDK: $sdk_url"
     
-    if curl -fL "$sdk_url" -o "${sdk_name}.tar.xz"; then
-        tar -xf "${sdk_name}.tar.xz"
+    if curl -fL "$sdk_url" -o "${sdk_name}.tar.zst"; then
+        tar -xf "${sdk_name}.tar.zst"
         mv "$sdk_name" "$SDK_DIR"
         echo "SDK downloaded and extracted"
     else
