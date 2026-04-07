@@ -1,0 +1,16 @@
+#!/bin/bash
+# PHTunnel Mock Binary for OpenWrt 25.12.x
+# This is a placeholder binary for testing APK package creation
+
+echo "PHTunnel Mock Binary v1.0.0"
+echo "This is a placeholder for testing OpenWrt 25.12.x APK package format"
+echo "For production use, replace this with the actual phtunnel binary"
+echo ""
+echo "Usage: /usr/sbin/phtunnel [options]"
+echo "  start    Start phtunnel service"
+echo "  stop     Stop phtunnel service"
+echo "  restart  Restart phtunnel service"
+echo "  status   Show phtunnel status"
+echo ""
+echo "Note: This is a mock binary for testing purposes only"
+exit 0
