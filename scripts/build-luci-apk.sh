@@ -49,6 +49,14 @@ cp "$LUCI_DIR/luasrc/model/cbi/phtunnel.lua" "$BUILD_DIR/usr/lib/lua/luci/model/
 mkdir -p "$BUILD_DIR/usr/lib/lua/luci/view/phtunnel"
 cp "$LUCI_DIR/luasrc/view/phtunnel/phtunnel_status.htm" "$BUILD_DIR/usr/lib/lua/luci/view/phtunnel/"
 
+# 复制 RPC ACL 配置文件
+if [ -f "$LUCI_DIR/usr/share/rpcd/acl.d/luci-app-phtunnel.json" ]; then
+    cp "$LUCI_DIR/usr/share/rpcd/acl.d/luci-app-phtunnel.json" "$BUILD_DIR/usr/share/rpcd/acl.d/"
+    echo -e "${GREEN}✓ RPC ACL 配置文件已复制${NC}"
+else
+    echo -e "${YELLOW}警告：RPC ACL 配置文件不存在，跳过${NC}"
+fi
+
 # 创建 .PKGINFO 文件（APK 包元数据）
 cat > "$BUILD_DIR/.PKGINFO" << EOF
 pkgname=$PKG_NAME
