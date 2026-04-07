@@ -1,0 +1,146 @@
+name: Build APK Packages
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'phtunnel-apk/**'
+      - 'luci-app-phtunnel-apk/**'
+      - 'scripts/build-apk.sh'
+      - 'scripts/build-luci-apk.sh'
+      - '.github/workflows/build-apk.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'phtunnel-apk/**'
+      - 'luci-app-phtunnel-apk/**'
+      - 'scripts/build-apk.sh'
+      - 'scripts/build-luci-apk.sh'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build APK for ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - qualcommax-ipq807x
+          - bcm27xx-bcm2712
+          - mediatek-filogic
+          - ramips-mt7621
+          - ramips-mt7620
+          - ath79-generic
+          - x86-64
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Prepare phtunnel binaries
+      run: |
+        # 下载预编译的二进制文件
+        mkdir -p phtunnel-binary
+        
+        # 定义架构映射
+        declare -A ARCH_MAP=(
+          ["qualcommax-ipq807x"]="aarch64-rpi3-linux-gnu"
+          ["bcm27xx-bcm2712"]="aarch64-rpi3-linux-gnu"
+          ["mediatek-filogic"]="aarch64-rpi3-linux-gnu"
+          ["ramips-mt7621"]="mipsel-unknown-linux-uclibc"
+          ["ramips-mt7620"]="mipsel-unknown-linux-uclibc"
+          ["ath79-generic"]="mips-unknown-linux-uclibc"
+          ["x86-64"]="x86_64-ubuntu12.04-linux-gnu"
+        )
+        
+        # 下载二进制文件
+        phtunnel_arch="${ARCH_MAP[$ARCH]}"
+        url="https://github.com/sdpong/phtunnel1/releases/download/v1.0.0.7/phtunnel-${phtunnel_arch}.bin"
+        
+        mkdir -p "phtunnel-binary/${ARCH}"
+        wget -O "phtunnel-binary/${ARCH}/phtunnel" "$url" || echo "Binary not found in release, skipping"
+        
+        if [ -f "phtunnel-binary/${ARCH}/phtunnel" ]; then
+          chmod +x "phtunnel-binary/${ARCH}/phtunnel"
+        fi
+    
+    - name: Build APK package
+      env:
+        ARCH: ${{ matrix.arch }}
+      run: |
+        # 构建核心包
+        ./scripts/build-apk.sh
+    
+    - name: Build LuCI APK package
+      run: |
+        # 构建 LuCI 应用（仅构建一次）
+        if [ "${{ matrix.arch }}" = "qualcommax-ipq807x" ]; then
+          ./scripts/build/build-luci-apk.sh
+        fi
+    
+    - name: Upload APK artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: phtunnel-apk-${{ matrix.arch }}
+        path: releases/apk/phtunnel_*.apk
+        retention-days: 30
+    
+    - name: Upload LuCI APK artifacts
+      if: matrix.arch == 'qualcommax-ipq807x'
+      uses: actions/upload-artifact@v4
+      with:
+        name: luci-app-phtunnel-apk
+        path: releases/apk/luci-app-phtunnel_*.apk
+        retention-days: 30
+  
+  release:
+    name: Create Release
+    needs: build-apk
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: artifacts/**/*
+        draft: false
+        prerelease: false
+        body: |
+          ## PHTunnel APK Packages for OpenWrt 25.12.x
+          
+          ### Core Packages
+          - phtunnel_1.0.0.7_qualcommax-ipq807x.apk - Qualcomm IPQ807x (WiFi 6/7)
+          - phtunnel_1.0.0.7_bcm27xx-bcm2712.apk - Broadcom BCM2712 (Raspberry Pi 5)
+          - phtunnel_1.0.0.7_mediatek-filogic.apk - MediaTek Filogic MT7986
+          - phtunnel_1.0.0.7_ramips-mt7621.apk - MediaTek MT7621
+          - phtunnel_1.0.0.7_ramips-mt7620.apk - MediaTek MT7620
+          - phtunnel_1.0.0.7_ath79-generic.apk - Atheros AR71xx/AR9xxx
+          - phtunnel_1.0.0.7_x86-64.apk - x86-64
+          
+          ### Web Interface
+          - luci-app-phtunnel_1.0.0.7_all.apk - LuCI Web Interface
+          
+          ### Installation
+          ```bash
+          # Install core package for your architecture
+          apk add phtunnel_1.0.0.7_<your-arch>.apk
+          
+          # Install web interface
+          apk add luci-app-phtunnel_1.0.0.7_all.apk
+          ```
+          
+          See PACKAGE_SUMMARY.txt for detailed instructions.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

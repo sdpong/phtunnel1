@@ -29,3 +29,11 @@ __pycache__/
 *.so
 #phtunnel
 phtunnel_check
+
+# Build directories
+phtunnel-apk/build-*
+luci-app-phtunnel-apk/build
+
+# Build directories
+phtunnel-apk/build-*
+luci-app-phtunnel-apk/build

@@ -1,0 +1,9 @@
+config phtunnel 'core'
+    option enabled '0'
+    option sn ''
+    option user ''
+
+config proxy
+    list port ''
+    list protocol 'http'
+    list host ''

@@ -1,0 +1,51 @@
+<%#
+Copyright 2023 Oray <developer@oray.com>
+Licensed to the public under the Apache License 2.0.
+-%>
+
+<div class="cbi-section">
+    <h3><%:PHTunnel Status%></h3>
+    <div class="cbi-value">
+        <label class="cbi-value-title"><%:Service Status%></label>
+        <div class="cbi-value-field">
+            <span id="phtunnel_status"><%:Loading...%></span>
+        </div>
+    </div>
+    <div class="cbi-value">
+        <label class="cbi-value-title"><%:Actions%></label>
+        <div class="cbi-value-field">
+            <input type="button" class="cbi-button cbi-button-apply" value="<%:Start%>" onclick="start_phtunnel()" />
+            <input type="button" class="cbi-button cbi-button-reset" value="<%:Stop%>" onclick="stop_phtunnel()" />
+            <input type="button" class="cbi-button cbi-button-reload" value="<%:Restart%>" onclick="restart_phtunnel()" />
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">//<![CDATA[
+    function start_phtunnel() {
+        XHR.get('<%=luci.dispatcher.build_url()%>/phtunnel/start', null, function(x, rv) {
+            window.location.reload();
+        });
+    }
+    
+    function stop_phtunnel() {
+        XHR.get('<%=luci.dispatcher.build_url()%>/phtunnel/stop', null, function(x, rv) {
+            window.location.reload();
+        });
+    }
+    
+    function restart_phtunnel() {
+        XHR.get('<%=luci.dispatcher.build_url()%>/phtunnel/restart', null, function(x, rv) {
+            window.location.reload();
+        });
+    }
+    
+    XHR.poll(5, '<%=luci.dispatcher.build_url()%>/phtunnel/status', null, function(x, rv) {
+        var status = document.getElementById('phtunnel_status');
+        if (rv && rv.status) {
+            status.innerHTML = '<span style="color:green"><%:Running%></span>';
+        } else {
+            status.innerHTML = '<span style="color:red"><%:Stopped%></span>';
+        }
+    });
+//]]></script>

@@ -1,0 +1,139 @@
+# PHTunnel APK 包摘要
+# OpenWrt 25.12.x (APK 格式)
+# 版本：1.0.0.7
+# 生成时间：2026-04-07
+
+## 核心包 (phtunnel)
+
+这些包包含 PHTunnel 二进制文件和相关配置文件，用于不同架构的 OpenWrt 路由器。
+
+| 架构 | 文件名 | 大小 | 说明 |
+|------|--------|------|------|
+| qualcommax-ipq807x | phtunnel_1.0.0.7_qualcommax-ipq807x.apk | 227K | Qualcomm IPQ807x (WiFi 6/7 路由器，如小米 AX3600/AX9000 等) |
+| bcm27xx-bcm2712 | phtunnel_1.0.0.7_bcm27xx-bcm2712.apk | 227K | Broadcom BCM2712 (树莓派 5) |
+| mediatek-filogic | phtunnel_1.0.0.7_mediatek-filogic.apk | 227K | MediaTek Filogic MT7986 (红米 AX6000、TP-Link XDR6088 等) |
+| ramips-mt7621 | phtunnel_1.0.0.7_ramips-mt7621.apk | 217K | MediaTek MT7621 (斐讯 K3、小米路由器 4A 等) |
+| ramips-mt7620 | phtunnel_1.0.0.7_ramips-mt7620.apk | 217K | MediaTek MT7620 (小米路由器 4C、部分 TP-Link) |
+| ath79-generic | phtunnel_1.0.0.7_ath79-generic.apk | 221K | Atheros AR71xx/AR9xxx (TP-Link WR842N、NanoStation 等) |
+| x86-64 | phtunnel_1.0.0.7_x86-64.apk | 223K | 通用 x86 路由器、软路由 |
+
+## Web 管理界面 (luci-app-phtunnel)
+
+这个包提供 LuCI Web 管理界面，用于配置和管理 PHTunnel 服务。
+
+| 架构 | 文件名 | 大小 | 说明 |
+|------|--------|------|------|
+| all | luci-app-phtunnel_1.0.0.7_all.apk | 1.7K | 架构无关的 LuCI 应用，可与任何架构的核心包一起使用 |
+
+## 安装说明
+
+### 1. 安装核心包
+
+根据您的路由器架构选择相应的核心包：
+
+```bash
+# 例如，对于 qualcommax-ipq807x 架构（小米 AX3600/AX9000）
+apk add phtunnel_1.0.0.7_qualcommax-ipq807x.apk
+
+# 对于 ramips-mt7621 架构（斐讯 K3、小米路由器 4A）
+apk add phtunnel_1.0.0.7_ramips-mt7621.apk
+
+# 对于 x86-64 架构（软路由）
+apk add phtunnel_1.0.0.7_x86-64.apk
+```
+
+### 2. 安装 Web 管理界面
+
+```bash
+apk add luci-app-phtunnel_1.0.0.7_all.apk
+```
+
+### 3. 配置服务
+
+通过 LuCI Web 界面配置：
+
+1. 打开浏览器访问路由器管理界面
+2. 导航到 "服务" -> "PHTunnel"
+3. 输入您的设备 SN 和用户信息
+4. 配置代理设置（端口、协议、主机等）
+5. 点击 "保存并应用"
+6. 启用服务
+
+或通过命令行配置：
+
+```bash
+# 编辑配置文件
+vi /etc/config/phtunnel
+
+# 启用服务
+/etc/init.d/phtunnel enable
+/etc/init.d/phtunnel start
+```
+
+## 文件结构
+
+### phtunnel 包
+
+```
+usr/
+└── sbin/
+    └── phtunnel          # PHTunnel 二进制文件
+
+etc/
+├── config/
+│   └── phtunnel         # UCI 配置文件
+├── init.d/
+│   └── phtunnel         # 初始化脚本
+└── hotplug.d/iface/
+    └── 30-oray-phtunnel # 网络热插拔脚本
+
+var/
+└── log/
+    └── oraybox/
+        └── phtunnel.log # 日志文件
+```
+
+### luci-app-phtunnel 包
+
+```
+usr/
+└── lib/
+    └── lua/
+        └── luci/
+            ├── controller/
+            │   └── phtunnel.lua         # 控制器
+            ├── model/
+            │   └── cbi/
+            │       └── phtunnel.lua     # CBI 模型
+            └── view/
+                └── phtunnel/
+                    └── phtunnel_status.htm  # 状态页面
+```
+
+## 卸载
+
+```bash
+# 停止服务
+/etc/init.d/phtunnel stop
+
+# 卸载包
+apk del luci-app-phtunnel
+apk del phtunnel
+```
+
+## 注意事项
+
+1. 此包使用 Oray 官方提供的预编译二进制文件
+2. PHTunnel 是专有软件，许可证为 Proprietary
+3. 如有问题，请联系 Oray 技术支持：https://hsk.oray.com/
+4. 支持的协议：TCP、HTTP、HTTPS
+5. 支持端到端 TLS 加密通信
+6. 支持黑白名单防黑验证
+
+## 版本历史
+
+- 1.0.0.7 (2026-04-07)
+  - 初始 APK 格式版本
+  - 支持 OpenWrt 25.12.x
+  - 支持 7 种架构
+  - 包含 LuCI Web 管理界面
