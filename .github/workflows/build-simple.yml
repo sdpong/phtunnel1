@@ -1,0 +1,215 @@
+name: Build PHTunnel APK for OpenWrt 25.12.x (Simplified)
+
+on:
+  workflow_dispatch:
+    inputs:
+      architecture:
+        description: 'Target architecture'
+        required: true
+        type: string
+        default: 'qualcommax'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Prepare environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git g++ libelf-dev libncurses5-dev libssl-dev zstd wget
+
+      - name: Set architecture
+        id: set_arch
+        run: |
+          case "${{ inputs.architecture }}" in
+            qualcommax)
+              echo "TARGET=qualcommax" >> $GITHUB_ENV
+              echo "ARCH=ipq807x" >> $GITHUB_ENV
+              echo "CPU=aarch64" >> $GITHUB_ENV
+              echo "BINARY_ARCH=aarch64" >> $GITHUB_ENV
+              ;;
+            x86_64)
+              echo "TARGET=x86" >> $GITHUB_ENV
+              echo "ARCH=64" >> $GITHUB_ENV
+              echo "CPU=x86_64" >> $GITHUB_ENV
+              echo "BINARY_ARCH=x86_64" >> $GITHUB_ENV
+              ;;
+            armv7)
+              echo "TARGET=mediatek" >> $GITHUB_ENV
+              echo "ARCH=mt7622" >> $GITHUB_ENV
+              echo "CPU=armv7" >> $GITHUB_ENV
+              echo "BINARY_ARCH=armv7" >> $GITHUB_ENV
+              ;;
+            mipsel)
+              echo "TARGET=ramips" >> $GITHUB_ENV
+              echo "ARCH=mt7620" >> $GITHUB_ENV
+              echo "CPU=mipsel" >> $GITHUB_ENV
+              echo "BINARY_ARCH=mipsel" >> $GITHUB_ENV
+              ;;
+            *)
+              echo "Unsupported architecture: ${{ inputs.architecture }}"
+              exit 1
+              ;;
+          esac
+          echo "Building for ${{ inputs.architecture }} ($TARGET/$ARCH)"
+
+      - name: Download OpenWrt 25.12.2 SDK
+        run: |
+          SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${TARGET}/${ARCH}/openwrt-sdk-25.12.2-${ARCH}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+          echo "Downloading SDK from: $SDK_URL"
+          curl -L -o sdk.tar.zst "$SDK_URL"
+          echo "SDK download completed"
+          
+          echo "Extracting SDK with zstd..."
+          zstd -d sdk.tar.zst -o sdk.tar
+          tar -xf sdk.tar
+          
+          SDK_DIR=$(ls -d openwrt-sdk-* 2>/dev/null | head -1)
+          if [ -n "$SDK_DIR" ]; then
+            mv "$SDK_DIR" sdk
+            echo "SDK extracted and ready: $(pwd)/sdk"
+          else
+            echo "Error: SDK directory not found"
+            exit 1
+          fi
+
+      - name: Setup build environment
+        run: |
+          cd sdk
+          
+          # Enable APK package format for OpenWrt 25.12.x
+          echo "CONFIG_USE_APK=y" >> .config
+          
+          # Update feeds
+          echo "Updating feeds..."
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          
+          # Copy package source
+          echo "Copying package files..."
+          cp -r ../phtunnel package/
+          cp -r ../luci-app-phtunnel package/
+          
+          # Configure build options
+          echo "Configuring build options..."
+          make defconfig
+          echo "CONFIG_PACKAGE_phtunnel=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
+          echo "CONFIG_PACKAGE_luci-lib-jsonc=y" >> .config
+          echo "CONFIG_PACKAGE_cgi-io=y" >> .config
+          echo "CONFIG_PACKAGE_curl=y" >> .config
+          make oldconfig
+
+      - name: Build phtunnel package
+        run: |
+          cd sdk
+          echo "Building phtunnel package..."
+          export CONFIG_USE_APK=y
+          make package/phtunnel/compile V=s
+
+      - name: Build luci-app-phtunnel package
+        run: |
+          cd sdk
+          echo "Building luci-app-phtunnel package..."
+          export CONFIG_USE_APK=y
+          make package/luci-app-phtunnel/compile V=s
+
+      - name: Find and verify APK packages
+        run: |
+          cd sdk
+          echo "Searching for APK packages..."
+          echo "Package files:"
+          find bin/packages -name "*.apk" -exec ls -lh {} \;
+          
+          if [ $(find bin/packages -name "*.apk" | wc -l) -eq 0 ]; then
+            echo "ERROR: No APK packages found!"
+            exit 1
+          else
+            echo "SUCCESS: APK packages found!"
+          fi
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: phtunnel-apk-${{ inputs.architecture }}
+          path: sdk/bin/packages/**/*.apk
+          if-no-files-found: error
+
+      - name: Create release
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd sdk
+          
+          # Create release directory
+          mkdir -p release
+          find bin/packages -name "*.apk" -exec cp {} release/ \;
+          
+          # Get package info
+          echo "Package contents:"
+          ls -lh release/
+          
+          # Create release notes
+          cat > release_notes.md << 'EOF'
+          ## PHTunnel v1.0.0-2 for OpenWrt 25.12.x (APK Format)
+          
+          **Fixed "unexpected end of file" installation error**
+          
+          ### Changes
+          - Updated to OpenWrt 25.12.2 SDK
+          - Correctly configured APK package format (CONFIG_USE_APK=y)
+          - Fixed SDK extraction for zstd format
+          - Used local pre-compiled binaries
+          - Enhanced for OpenWrt 25.12.x APK standard
+          
+          ### Architecture
+          - Target: ${{ inputs.architecture }}
+          - SDK: 25.12.2-${ARCH}
+          - CPU: ${CPU}
+          
+          ### Installation
+          ```bash
+          # Upload to router
+          scp phtunnel-1.0.0-2_*.apk root@192.168.1.1:/tmp/
+          scp luci-app-phtunnel-1.0.0-2_all.apk root@192.168.1.1:/tmp/
+          
+          # Install
+          ssh root@192.168.1.1
+          cd /tmp
+          apk add phtunnel-1.0.0-2_*.apk
+          apk add luci-app-phtunnel-1.0.0-2_all.apk
+          ```
+          
+          ### Verification
+          ```bash
+          # Check OpenWrt version
+          cat /etc/openwrt_release
+          
+          # Verify installation
+          apk info | grep phtunnel
+          
+          # Test service
+          /etc/init.d/phtunnel status
+          ```
+          
+          **Note**: This version ONLY supports OpenWrt 25.12.x and above.
+          EOF
+          
+          # Check if tag exists
+          if git tag -l "v1.0.0-2" | grep -q .; then
+            echo "Tag v1.0.0-2 already exists, updating release..."
+            gh release delete v1.0.0-2
+          fi
+          
+          # Create release
+          gh release create v1.0.0-2 \
+            --title "PHTunnel v1.0.0-2 for OpenWrt 25.12.x" \
+            --notes-file release_notes.md \
+            release/*.apk

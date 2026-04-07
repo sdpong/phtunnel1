@@ -3,7 +3,7 @@ include $(TOPDIR)/rules.mk
 # OpenWrt 25.12.x 包变量
 PKG_NAME:=luci-app-phtunnel
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 # LuCI 元数据
 LUCI_TITLE:=LuCI Support for PHTunnel
