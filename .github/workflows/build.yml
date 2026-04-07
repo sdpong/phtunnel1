@@ -3,11 +3,20 @@ name: Build PHTunnel APK for OpenWrt 25.12.x
 on:
   workflow_dispatch:
     inputs:
-      architecture:
-        description: 'Target architecture (qualcommax, x86, mediatek, ramips, ath79, rockchip, bcm27xx)'
+      target:
+        description: 'Target architecture (qualcommax, x86, mediatek, ramips, ath79, rockchip, bcm27xx, all)'
         required: true
-        type: string
-        default: 'qualcommax'
+        type: choice
+        options:
+          - qualcommax
+          - x86
+          - mediatek
+          - ramips
+          - ath79
+          - rockchip
+          - bcm27xx
+          - all
+        default: qualcommax
 
 jobs:
   build:
