@@ -148,7 +148,7 @@ jobs:
           if [ ! -d "sdk" ]; then
             echo "Downloading OpenWrt SDK..."
             
-            SDK_RELEASE="https://downloads.openwrt.org/releases/${{ env.OPENWRT_VERSION }}/targets/${{ steps.sdk_info.outputs.arch }}/${{ steps.sdk_info.outputs.subarch }}/openwrt-sdk-${{ steps.sdk_info.outputs.arch }}-${{ steps.sdk_info.outputs.sdk_subarch }}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+            SDK_RELEASE="https://downloads.openwrt.org/releases/${{ env.OPENWRT_VERSION }}/targets/${{ steps.sdk_info.outputs.arch }}/${{ steps.sdk_info.outputs.subarch }}/openwrt-imagebuilder-${{ steps.sdk_info.outputs.arch }}-${{ steps.sdk_info.outputs.sdk_subarch }}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
             
             if curl -fL "$SDK_RELEASE" -o sdk.tar.zst 2>/dev/null; then
               echo "Downloaded release SDK"
@@ -158,7 +158,7 @@ jobs:
             fi
             
             tar -xf sdk.tar.zst
-            mv openwrt-sdk-* sdk
+            mv openwrt-imagebuilder-* sdk
           else
             echo "Using cached SDK"
           fi

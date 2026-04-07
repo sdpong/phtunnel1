@@ -38,7 +38,7 @@ Examples:
   $0                          # Build all architectures
   $0 -a x86-64               # Build only x86-64
   $0 -v 1.1.0-1              # Build version 1.1.0-1
-  $0 -s ./openwrt-sdk-x86_64 # Use specific SDK
+  $0 -s ./openwrt-imagebuilder-x86_64 # Use specific SDK
 
 USAGE
 }
@@ -48,7 +48,7 @@ download_sdk() {
     local subarch="$2"
     local sdk_subarch="$3"
     
-    local sdk_name="openwrt-sdk-${arch}-${sdk_subarch}_gcc-14.3.0_musl.Linux-x86_64"
+    local sdk_name="openwrt-imagebuilder-${arch}-${sdk_subarch}_gcc-14.3.0_musl.Linux-x86_64"
     local sdk_url="https://downloads.openwrt.org/releases/25.12.1/targets/${arch}/${subarch}/${sdk_name}.tar.zst"
     
     if [ -d "$SDK_DIR" ]; then
