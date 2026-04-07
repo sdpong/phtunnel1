@@ -85,13 +85,14 @@ fi
 EOF
     chmod +x "$CONTROL_DIR/.post-install"
     
-    # 创建控制数据包
+    # 创建控制数据包（使用 COPYFILE_DISABLE 环境变量避免 Mac 元数据）
     cd "$CONTROL_DIR"
-    tar -czf "$BUILD_DIR/control.tar.gz" .PKGINFO .pre-install .post-install
+    COPYFILE_DISABLE=1 tar --format=posix --numeric-owner -czf "$BUILD_DIR/control.tar.gz" .PKGINFO .pre-install .post-install
     cd "$BUILD_DIR"
     
     # 创建数据目录
     DATA_DIR="$BUILD_DIR/data"
+    rm -rf "$DATA_DIR"
     mkdir -p "$DATA_DIR"
     
     # 创建 APK 目录结构
@@ -112,19 +113,38 @@ EOF
     chmod +x "$DATA_DIR/etc/init.d/phtunnel"
     chmod +x "$DATA_DIR/etc/hotplug.d/iface/30-oray-phtunnel"
     
-    # 创建数据包
+    # 创建数据包（使用 COPYFILE_DISABLE 环境变量避免 Mac 元数据）
     cd "$DATA_DIR"
-    tar -czf "$BUILD_DIR/data.tar.gz" usr etc var
+    COPYFILE_DISABLE=1 tar --format=posix --numeric-owner -czf "$BUILD_DIR/data.tar.gz" usr etc var
     cd "$BUILD_DIR"
     
     # 创建最终 APK 包（Alpine Linux 格式：control.tar.gz + data.tar.gz）
     APKTAR="$OUTPUT_DIR/${PKG_NAME}_${VERSION}_${arch}.apk"
     cat control.tar.gz data.tar.gz > "$APKTAR"
     
+    # 验证 APK 格式
+    control_size=$(stat -f%z "$BUILD_DIR/control.tar.gz")
+    data_size=$(stat -f%z "$BUILD_DIR/data.tar.gz")
+    apk_size=$(stat -f%z "$APKTAR")
+    
+    # 检查 gzip 流数量（应该只有 2 个）
+    gzip_count=$(python3 -c "
+import sys
+with open('$APKTAR', 'rb') as f:
+    content = f.read()
+    gz_count = sum(1 for i in range(len(content)-1) if content[i:i+2] == b'\x1f\x8b')
+    print(gz_count)
+" 2>/dev/null || echo "unknown")
+    
     echo -e "${GREEN}✓ APK 包已创建：$APKTAR${NC}"
-    echo -e "  ${YELLOW}control.tar.gz 大小：$(ls -lh "$BUILD_DIR/control.tar.gz" | awk '{print $5}')${NC}"
-    echo -e "  ${YELLOW}data.tar.gz 大小：$(ls -lh "$BUILD_DIR/data.tar.gz" | awk '{print $5}')${NC}"
-    echo -e "  ${YELLOW}APK 总大小：$(ls -lh "$APKTAR" | awk '{print $5}')${NC}"
+    echo -e "  ${YELLOW}control.tar.gz: $control_size bytes${NC}"
+    echo -e "  ${YELLOW}data.tar.gz: $data_size bytes${NC}"
+    echo -e "  ${YELLOW}APK 总大小: $apk_size bytes${NC}"
+    echo -e "  ${YELLOW}Gzip 流数量: $gzip_count${NC}"
+    
+    if [ "$gzip_count" != "2" ]; then
+        echo -e "${RED}警告：Gzip 流数量不正确（应为 2，实际为 $gzip_count）${NC}"
+    fi
     
     cd "$PROJECT_ROOT"
 done
