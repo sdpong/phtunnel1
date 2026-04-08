@@ -6,10 +6,9 @@ on:
       target:
         description: 'Target architecture'
         required: true
-        type: choice
-        default: 'all'
+        type: string
+        default: 'qualcommax'
         options:
-          - 'all'
           - 'qualcommax'
           - 'x86_64'
           - 'mediatek'
@@ -26,22 +25,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
-      - name: Prepare environment
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential git g++ libelf-dev libncurses5-dev libssl-dev zstd wget
-      
-      - name: Verify binary files exist
-        run: |
-          echo "Checking binary files..."
-          for arch_dir in phtunnel/binaries/*/; do
-            if [ -d "$arch_dir" ]; then
-              arch_name=$(basename "$arch_dir")
-              echo "Found binary directory: $arch_name"
-              ls -lh "$arch_dir"
-            fi
-          done
       
       - name: Build all architectures
         run: |
@@ -71,18 +54,16 @@ jobs:
             WORK_DIR="$BUILD_DIR/$arch_key"
             mkdir -p "$WORK_DIR"
             
-            # Check if binary exists (use absolute path)
+            # Check if binary exists
             if [ ! -f "${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel" ]; then
               echo "ERROR: Binary not found: ${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel"
-              echo "Available binary directories:"
-              ls -la "${GITHUB_WORKSPACE}/phtunnel/binaries/"
               echo "Skipping $arch_key..."
               continue
             fi
             
             echo "Binary found: ${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel"
             
-            # Determine SDK filename
+            # Determine SDK URL (special case for x86)
             if [ "$target" = "x86" ]; then
               SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${target}/${arch_name}/openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
             else
@@ -204,7 +185,6 @@ jobs:
             echo "Finding phtunnel and luci-app-phtunnel APK packages..."
             mkdir -p "../apks_$arch_key"
             
-            # Only copy phtunnel and luci-app-phtunnel APKs
             find bin/packages -name "phtunnel*.apk" -exec cp {} ../apks_$arch_key/ \; 2>/dev/null || true
             find bin/packages -name "luci-app-phtunnel*.apk" -exec cp {} ../apks_$arch_key/ \; 2>/dev/null || true
             
@@ -218,8 +198,8 @@ jobs:
             echo ""
             
             # Clean up SDK
-            cd ../..
-            rm -rf openwrt-sdk
+            cd ..
+            rm -rf "openwrt-sdk"
             cd ../..
           done
           
@@ -229,11 +209,10 @@ jobs:
           echo "Total APK packages:"
           find "$BUILD_DIR" -name "*.apk" | wc -l
       
-      - name: Collect phtunnel and luci-app-phtunnel APK packages
+      - name: Collect all APK packages
         run: |
           mkdir -p apks_all
           
-          # Only collect phtunnel and luci-app-phtunnel APKs
           find build_all -name "phtunnel*.apk" -exec cp {} apks_all/ \;
           find build_all -name "luci-app-phtunnel*.apk" -exec cp {} apks_all/ \;
           
@@ -242,10 +221,10 @@ jobs:
           
           echo "Total APK packages: $(find apks_all -name '*.apk' | wc -l)"
       
-      - name: Upload phtunnel and luci-app-phtunnel APK artifacts
+      - name: Upload all APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: phtunnel-apk-packages
+          name: phtunnel-apk-all
           path: apks_all/*.apk
       
       - name: Create release
@@ -270,11 +249,10 @@ jobs:
           - Updated to OpenWrt 25.12.2 SDK
           - Correctly configured APK package format (CONFIG_USE_APK=y)
           - Fixed SDK download URLs for all architectures
-          - Built 6 mainstream architectures
+          - Built all 7 mainstream architectures
           - Fixed architecture matching and binary selection
           - Used local pre-compiled binaries
           - Enhanced for OpenWrt 25.12.x APK standard
-          - Only includes phtunnel and luci-app-phtunnel packages
           
           ### Architectures
           - qualcommax/ipq807x (aarch64) - Priority #1
@@ -285,7 +263,7 @@ jobs:
           - bcm27xx/bcm2711 (armv7) - Priority #6
           
           ### Installation
-          Download the APK package for your architecture from the artifacts:
+          Download the APK package for your architecture from artifacts:
           \`\`\`bash
           # Example for qualcommax/ipq807x (aarch64)
           apk add phtunnel-1.0.0-2_aarch64.apk
@@ -303,7 +281,7 @@ jobs:
           - OpenWrt SDK: 25.12.2 (not 23.05.5)
           - APK Format: CONFIG_USE_APK=y enabled
           - Binary Source: Pre-compiled local binaries
-          - Build: Multi-architecture build
+          - Build: Multi-architecture parallel build
           - Reference: Based on OpenAppFilter successful build
           
           **Note**: This version ONLY supports OpenWrt 25.12.x and above.

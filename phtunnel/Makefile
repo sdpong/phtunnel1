@@ -5,8 +5,8 @@ PKG_NAME:=phtunnel
 PKG_VERSION:=1.0.0
 PKG_RELEASE:=2
 
- # 本地二进制文件路径
- BINARY_DIR:=$(CURDIR)/binaries
+# 本地二进制文件路径
+BINARY_DIR:=$(CURDIR)/binaries
 
 # 源代码信息
 PKG_HASH:=skip
