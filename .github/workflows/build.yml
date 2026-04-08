@@ -210,6 +210,19 @@ jobs:
               echo "WARNING: luci-app-phtunnel build may have had issues, checking for output..."
             fi
             
+            # Check if build succeeded
+            echo "=== Checking build results ==="
+            echo "Looking for APK packages in bin/packages:"
+            find bin/packages -name "*.apk" -exec ls -lh {} \; || echo "No APKs found in bin/packages"
+            echo ""
+            
+            echo "Looking for phtunnel APK packages:"
+            find bin/packages -name "phtunnel*.apk" || echo "No phtunnel APKs found"
+            echo ""
+            
+            echo "Looking for luci-app-phtunnel APK packages:"
+            find bin/packages -name "luci-app-phtunnel*.apk" || echo "No luci-app-phtunnel APKs found"
+            
             # Find and copy only phtunnel and luci-app-phtunnel APKs
             echo "Finding phtunnel and luci-app-phtunnel APK packages..."
             mkdir -p "../apks_$arch_key"
@@ -240,15 +253,48 @@ jobs:
       
       - name: Collect all APK packages
         run: |
+          set -e
+          
+          echo "=== Checking build results ==="
+          echo "build_all directory structure:"
+          find build_all -type f -name "*.apk" | head -20
+          echo ""
+          
+          echo "All APK packages in build_all:"
+          find build_all -name "*.apk" -exec ls -lh {} \; || echo "No APKs found"
+          echo ""
+          
+          echo "Checking individual architecture directories:"
+          for dir in build_all/*/; do
+            if [ -d "$dir" ]; then
+              echo "=== Directory: $dir ==="
+              ls -lh "$dir" 2>/dev/null | head -10 || echo "Empty or error"
+              if [ -d "$dir/apks_"* ]; then
+                echo "Found apks directory:"
+                ls -lh "$dir"/apks_*/* 2>/dev/null || echo "No files in apks directory"
+              fi
+            fi
+          done
+          echo ""
+          
           mkdir -p apks_all
           
+          echo "=== Collecting APK packages ==="
           find build_all -name "phtunnel*.apk" -exec cp {} apks_all/ \;
           find build_all -name "luci-app-phtunnel*.apk" -exec cp {} apks_all/ \;
           
-          echo "Collected APK packages:"
+          echo "=== Collected APK packages ==="
           ls -lh apks_all/
           
-          echo "Total APK packages: $(find apks_all -name '*.apk' | wc -l)"
+          APK_COUNT=$(find apks_all -name '*.apk' | wc -l)
+          echo "Total APK packages collected: $APK_COUNT"
+          
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "ERROR: No APK packages found in apks_all"
+            echo "Searching entire build_all directory recursively:"
+            find build_all -type f -name "*.apk" || echo "No APKs found anywhere"
+            exit 1
+          fi
       
       - name: Upload all APK artifacts
         uses: actions/upload-artifact@v4
@@ -261,12 +307,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -e
+          
+          echo "=== Preparing for release ==="
+          echo "Checking apks_all directory:"
+          ls -lh apks_all/
+          
           # Check if we have any APKs
           APK_COUNT=$(find apks_all -name '*.apk' | wc -l)
+          echo "APK_COUNT=$APK_COUNT"
+          
           if [ "$APK_COUNT" -eq 0 ]; then
             echo "ERROR: No APK packages found to create release"
+            echo "Final directory structure check:"
+            find . -name "*.apk" -exec ls -lh {} \; || echo "No APKs found anywhere"
             exit 1
           fi
+          
+          echo "=== Creating release with $APK_COUNT APK packages ==="
           
           # Create release notes
           cat > release_notes.md << 'EOF'
