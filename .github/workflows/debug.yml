@@ -1,0 +1,90 @@
+name: Build PHTunnel APK for OpenWrt 25.12.x
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target architecture'
+        required: true
+        type: choice
+        default: 'all'
+        options:
+          - 'all'
+          - 'qualcommax'
+          - 'x86_64'
+          - 'mediatek'
+          - 'ramips'
+          - ath79'
+          -bcm27xx'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Debug environment and files
+        run: |
+          echo "=== Debug Information ==="
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          echo "Current directory:"
+          pwd
+          echo ""
+          echo "Repository structure:"
+          ls -la
+          echo ""
+          echo "Checking for phtunnel/binaries:"
+          ls -la phtunnel/binaries/ 2>/dev/null || echo "phtunnel/binaries not found"
+          echo ""
+          echo "Listing all directories:"
+          find . -type d -name "binaries" -exec echo "Found: {}" \;
+          echo ""
+          
+          echo "Checking if binary files exist:"
+          ls -la phtunnel/binaries/aarch64/phtunnel || echo "NOT FOUND: aarch64"
+          ls -la phtunnel/binaries/x86_64/phtunnel || echo "NOT FOUND: x86_64"
+          ls -la phtunnel/binaries/armv7/phtunnel || echo "NOT FOUND: armv7"
+          ls -la phtunnel/binaries/mips/phtunnel || echo "NOT FOUND: mips"
+          ls -ha phtunnel/binaries/mipsel/phtunnel || echo "NOT FOUND: mipsel"
+          
+          echo ""
+          echo "Git tracked files:"
+          git ls-files | grep -E "binaries.*phtunnel" | head -10
+      
+      - name: Build single architecture (qualcommax test)
+        run: |
+          set -e
+          
+          echo "=== Single architecture build test ==="
+          
+          # Define single architecture mapping
+          target="qualcommax"
+          arch_name="ipq807x"
+          binary_dir="aarch64"
+          
+          WORK_DIR="build_test"
+          mkdir -p "$WORK_DIR"
+          
+          # Check if binary exists
+          echo "Checking for binary: ${GITHUB_WORKSPACE}/phtunnel/binaries/${binary_dir}/phtunnel"
+          if [ -f "${GITHUB_WORKSPACE}/phtunnel/binaries/${binary_dir}/phtunnel" ]; then
+            echo "SUCCESS: Binary found!"
+            ls -lh "${GITHUB_WORKSPACE}/phtunnel/binaries/${binary_dir}/phtunnel"
+          else
+            echo "ERROR: Binary not found!"
+            echo "GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}"
+            echo "Listing binary directory:"
+            ls -la "${GITHUB_WORKSPACE}/phtunnel/binaries/${binary_dir}/" || echo "Directory not found"
+            echo "Listing all binary directories:"
+            find "${GITHUB_WORKSPACE}/phtunnel/binaries/" -type f -name "phtunnel" -exec echo "Found: {}" \;
+            exit 1
+          fi
+          
+          # Set environment variables
+          export ARCH="aarch64"
+          export BINARY_ARCH="aarch64"
+          echo "Setting ARCH=$ARCH, BINARY_ARCH=$BINARY_ARCH"
