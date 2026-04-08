@@ -72,11 +72,11 @@ jobs:
             echo "Binary found: ${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel"
             
             # Determine SDK URL (special case for x86)
-            if [ "$target" = "x86" ]; then
-              SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${target}/${arch_name}/openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
-            else
-              SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${target}/${arch_name}/openwrt-sdk-25.12.2-${target}-${arch_name}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
-            fi
+              if [ "$target" = "x86" ]; then
+                SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/x86/64/openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+              else
+                SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${target}/${arch_name}/openwrt-sdk-25.12.2-${target}-${arch_name}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+              fi
             echo "SDK URL: $SDK_URL"
             
             # Download SDK
@@ -210,6 +210,18 @@ jobs:
               echo "WARNING: luci-app-phtunnel build may have had issues, checking for output..."
             fi
             
+            # Immediate APK check after build
+            echo "=== Immediate APK check after build ==="
+            echo "Checking for phtunnel APKs:"
+            find bin/packages -name "phtunnel*.apk" -exec ls -lh {} \; || echo "No phtunnel APKs found"
+            echo ""
+            echo "Checking for luci-app-phtunnel APKs:"
+            find bin/packages -name "luci-app-phtunnel*.apk" -exec ls -lh {} \; || echo "No luci-app-phtunnel APKs found"
+            echo ""
+            echo "All .apk files in bin directory:"
+            find bin -name "*.apk" | head -10 || echo "No APK files found"
+            echo ""
+            
             # Check if build succeeded
             echo "=== Checking build results ==="
             echo "Looking for APK packages in bin/packages:"
@@ -227,8 +239,9 @@ jobs:
             echo "Finding phtunnel and luci-app-phtunnel APK packages..."
             mkdir -p "../apks_$arch_key"
             
-            find bin/packages -name "phtunnel*.apk" -exec cp {} ../apks_$arch_key/ \; 2>/dev/null || true
-            find bin/packages -name "luci-app-phtunnel*.apk" -exec cp {} ../apks_$arch_key/ \; 2>/dev/null || true
+            # Search in all possible APK locations
+            find bin -name "phtunnel*.apk" -exec cp {} ../apks_$arch_key/ \; 2>/dev/null || true
+            find bin -name "luci-app-phtunnel*.apk" -exec cp {} ../apks_$arch_key/ \; 2>/dev/null || true
             
             echo "APK packages for $arch_key:"
             ls -lh ../apks_$arch_key/ 2>/dev/null || echo "No APKs found"
@@ -236,6 +249,13 @@ jobs:
             if [ -z "$(ls -A ../apks_$arch_key/ 2>/dev/null)" ]; then
               echo "WARNING: No phtunnel or luci-app-phtunnel APK packages found for $arch_key"
             fi
+            
+            echo "=== Checking bin directory structure ==="
+            echo "All directories in bin:"
+            find bin -type d -maxdepth 2 | head -20 || echo "No directories found"
+            
+            echo "All .apk files in bin:"
+            find bin -name "*.apk" -exec ls -lh {} \; || echo "No APK files found"
             
             echo ""
             
