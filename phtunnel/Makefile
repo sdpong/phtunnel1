@@ -3,11 +3,36 @@ include $(TOPDIR)/rules.mk
 # OpenWrt 25.12.x 包变量
 PKG_NAME:=phtunnel
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
+
+# 本地二进制文件路径
+BINARY_DIR:=$(CURDIR)/binaries
+
+# 架构映射
+# 将 OpenWrt 目标架构映射到本地二进制文件架构
+ifeq ($(ARCH),x86_64)
+  BINARY_ARCH:=x86_64
+else ifeq ($(ARCH),aarch64)
+  BINARY_ARCH:=aarch64
+else ifeq ($(ARCH),arm_cortex-a7)
+  BINARY_ARCH:=armv7
+else ifeq ($(ARCH)),arm_cortex-a9)
+  BINARY_ARCH:=armv7
+else ifeq ($(ARCH)),mips_24kc)
+  BINARY_ARCH:=mips
+else ifeq ($(ARCH)),mipsel_24kc)
+  BINARY_ARCH:=mipsel
+else ifeq ($(ARCH)),ath79)
+  BINARY_ARCH:=mips
+else ifeq ($(ARCH)),rockchip)
+  BINARY_ARCH:=aarch64
+else ifeq ($(ARCH)),bcm27xx)
+  BINARY_ARCH:=armv7
+else
+  BINARY_ARCH:=x86_64
+  endif
 
 # 源代码信息
-PKG_SOURCE:=phtunnel
-PKG_SOURCE_URL:=https://mirrors.oray.com/orayos/packages/$(PKG_NAME)/$(PKG_VERSION)/bin
 PKG_HASH:=skip
 PKG_FLAGS:=nonshared
 PKG_MAINTAINER:=Oray <developer@oray.com>
@@ -36,13 +61,26 @@ define Package/phtunnel/description
 endef
 
 define Build/Prepare
-	mkdir -p $(PKG_BUILD_DIR)
-	cp $(DL_DIR)/$(PKG_SOURCE) $(PKG_BUILD_DIR)
-	chmod +x $(PKG_BUILD_DIR)/$(PKG_SOURCE)
+  mkdir -p $(PKG_BUILD_DIR)
+  
+  # 检查本地二进制文件
+  BINARY_FILE="$(BINARY_DIR)/$(BINARY_ARCH)/phtunnel"
+  
+  if [ -f "$(BINARY_FILE)" ]; then
+    echo "Using phtunnel binary for $(BINARY_ARCH)"
+    cp "$(BINARY_FILE)" "$(PKG_BUILD_DIR)/phtunnel"
+    chmod +x "$(PKG_BUILD_DIR)/phtunnel"
+  else
+    echo "Error: phtunnel binary not found for $(BINARY_ARCH)"
+    echo "Available binary architectures:"
+    ls -la "$(BINARY_DIR)"/
+    exit 1
+  fi
 endef
 
 define Build/Compile
-	true
+  # 二进制文件已经预编译，无需重新编译
+  true
 endef
 
 define Package/phtunnel/install
