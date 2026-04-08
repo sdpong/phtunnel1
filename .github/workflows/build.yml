@@ -167,12 +167,13 @@ jobs:
             # Copy package files
             echo "Copying package files..."
             mkdir -p package/phtunnel
-            cp -r ../../phtunnel/* package/phtunnel/
+            cp -r "${GITHUB_WORKSPACE}/phtunnel/"* package/phtunnel/
+            cp -r "${GITHUB_WORKSPACE}/luci-app-phtunnel/"* package/luci-app-phtunnel/
             
             # Copy correct binary for this architecture
             echo "Copying binary for $arch_key..."
             mkdir -p package/phtunnel/binaries
-            cp "../../phtunnel/binaries/$binary_dir/phtunnel" package/phtunnel/binaries/phtunnel
+            cp "${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel" package/phtunnel/binaries/phtunnel
             chmod +x package/phtunnel/binaries/phtunnel
             
             # Verify binary was copied
