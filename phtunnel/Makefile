@@ -16,21 +16,21 @@ else ifeq ($(ARCH),aarch64)
   BINARY_ARCH:=aarch64
 else ifeq ($(ARCH),arm_cortex-a7)
   BINARY_ARCH:=armv7
-else ifeq ($(ARCH)),arm_cortex-a9)
+else ifeq ($(ARCH),arm_cortex-a9)
   BINARY_ARCH:=armv7
-else ifeq ($(ARCH)),mips_24kc)
+else ifeq ($(ARCH),mips_24kc)
   BINARY_ARCH:=mips
-else ifeq ($(ARCH)),mipsel_24kc)
+else ifeq ($(ARCH),mipsel_24kc)
   BINARY_ARCH:=mipsel
-else ifeq ($(ARCH)),ath79)
+else ifeq ($(ARCH),ath79)
   BINARY_ARCH:=mips
-else ifeq ($(ARCH)),rockchip)
+else ifeq ($(ARCH),rockchip)
   BINARY_ARCH:=aarch64
-else ifeq ($(ARCH)),bcm27xx)
+else ifeq ($(ARCH),bcm27xx)
   BINARY_ARCH:=armv7
 else
   BINARY_ARCH:=x86_64
-  endif
+endif
 
 # 源代码信息
 PKG_HASH:=skip
@@ -88,7 +88,7 @@ define Package/phtunnel/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
 	$(INSTALL_DIR) $(1)/usr/sbin
-
+	
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/phtunnel $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/etc/init.d/* $(1)/etc/init.d/
 	$(INSTALL_CONF) ./files/etc/config/* $(1)/etc/config/
