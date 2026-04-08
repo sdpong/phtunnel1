@@ -26,14 +26,38 @@ define Package/$(PKG_NAME)
   ARCH:=all
 endef
 
-define Package/$(PKG_NAME)/description
-  LuCI web interface for PHTunnel (HSK intranet penetration).
+ define Package/$(PKG_NAME)/description
+   LuCI web interface for PHTunnel (HSK intranet penetration).
 
-  This package provides a web interface for configuring and managing
-  PHTunnel services in OpenWrt 25.12.x.
-endef
-
-define Package/$(PKG_NAME)/install
+   This package provides a web interface for configuring and managing
+   PHTunnel services in OpenWrt 25.12.x.
+ endef
+ 
+ define Build/Prepare
+   mkdir -p $(PKG_BUILD_DIR)
+   
+   # 复制LuCI源文件
+   if [ -d ./luasrc ]; then
+     cp -r ./luasrc/* $(PKG_BUILD_DIR)/
+   fi
+   
+   # 复制根文件系统文件
+   if [ -d ./root ]; then
+     cp -r ./root/* $(PKG_BUILD_DIR)/
+   fi
+   
+   # 复制国际化文件
+   if [ -d ./po ]; then
+     cp -r ./po $(PKG_BUILD_DIR)/
+   fi
+ endef
+ 
+ define Build/Compile
+   # LuCI应用无需编译，文件已经准备好
+   true
+ endef
+ 
+ define Package/$(PKG_NAME)/install
   $(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller
   $(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller/oray
   $(INSTALL_DIR) $(1)/usr/lib/lua/luci/model/cbi

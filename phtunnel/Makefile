@@ -5,57 +5,31 @@ PKG_NAME:=phtunnel
 PKG_VERSION:=1.0.0
 PKG_RELEASE:=2
 
-# 本地二进制文件路径
-BINARY_DIR:=$(CURDIR)/binaries
-
-# 直接的架构检查，使用简单的逻辑
-# 支持：x86, x86_64, aarch64, armv7, mips, mipsel
-# OpenWrt 25.12.x SDK中实际的$(ARCH)变量值：
-
-# 检查x86
-if [ "$(ARCH)" = "x86" ]; then
-  BINARY_ARCH:=x86_64
-  # 检查x86_64
-elif [ "$(ARCH)" = "x86_64" ]; then
-  BINARY_ARCH:=x86_64
-  # 检查aarch64
-elif [ "$(ARCH)" = "aarch64" ]; then
-  BINARY_ARCH:=aarch64
-  # 检查armv7
-elif [ "$(ARCH)" = "armv7" ]; then
-  BINARY_ARCH:=armv7
-  # 检查mips
-elif [ "$(ARCH)" = "mips" ]; then
-  BINARY_ARCH:=mips
-  # 检查mipsel
-elif [ "$(ARCH)" = "mipsel" ]; then
-  # 检查arm_cortex-a7 (armv7)
-  BINARY_ARCH:=armv7
-  # 检查arm_cortex-a9 (armv7)
-elif [ "$(ARCH)" = "arm_cortex-a7" ]; then
-  BINARY_ARCH:=armv7
-  # 检查arm_cortex-a9 (armv7)
-elif [ "$(ARCH)" = "arm_cortex-a9" ]; then
-  BINARY_ARCH:=armv7
-  # 检查mips_24kc
-elif [ "$(ARCH)" = "mips_24kc" ]; then
-  BINARY_ARCH:=mips
-  # 检查mipsel_24kc
-elif [ "$(ARCH)" = "mipsel_24kc" ]; then
-  BINARY_ARCH:=mipsel
-  # 检查ath79 (mips)
-elif [ "$(ARCH)" = "ath79" ]; then
-  BINARY_ARCH:=mips
-  # 检查rockchip (aarch64)
-elif [ "$(ARCH)" = "rockchip" ]; then
-  BINARY_ARCH:=aarch64
-  # 检查bcm27xx (armv7)
-elif [ "$(ARCH)" = "bcm27xx" ]; then
-  BINARY_ARCH:=armv7
-  # 其他
-else
-  BINARY_ARCH:=x86_64
-endif
+ # 本地二进制文件路径
+ BINARY_DIR:=$(CURDIR)/binaries
+ 
+ # 架构映射 - 直接检查OpenWrt架构变量
+ # 如果BINARY_ARCH没有定义，则根据ARCH设置默认值
+ ifndef BINARY_ARCH
+   ifeq ($(ARCH),x86_64)
+     BINARY_ARCH:=x86_64
+   else ifeq ($(ARCH),x86)
+     BINARY_ARCH:=x86_64
+   else ifeq ($(ARCH),aarch64)
+     BINARY_ARCH:=aarch64
+   else ifeq ($(ARCH),armv7)
+     BINARY_ARCH:=armv7
+   else ifeq ($(ARCH),arm)
+     BINARY_ARCH:=armv7
+   else ifeq ($(ARCH),mips)
+     BINARY_ARCH:=mips
+   else ifeq ($(ARCH),mipsel)
+     BINARY_ARCH:=mipsel
+   else
+     # 默认使用x86_64
+     BINARY_ARCH:=x86_64
+   endif
+ endif
 
 # 源代码信息
 PKG_HASH:=skip
@@ -96,7 +70,7 @@ define Build/Prepare
     cp "$(BINARY_FILE)" "$(PKG_BUILD_DIR)/phtunnel"
     chmod +x "$(PKG_BUILD_DIR)/phtunnel"
   else
-    echo "Error: phtunnel binary not found for $(BINARY_ARCH)"
+    echo "Error: phtunnel binary not found: $(BINARY_ARCH)"
     echo "Available binary architectures:"
     ls -la "$(BINARY_DIR)"/
     exit 1
@@ -113,7 +87,7 @@ define Package/phtunnel/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
 	$(INSTALL_DIR) $(1)/usr/sbin
-
+	
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/phtunnel $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/etc/init.d/* $(1)/etc/init.d/
 	$(INSTALL_CONF) ./files/etc/config/* $(1)/etc/config/

@@ -269,16 +269,19 @@ jobs:
               echo "WARNING: luci-app-phtunnel build may have had issues, checking for output..."
             fi
             
-            # Find and copy APKs
-            echo "Finding APK packages..."
+            # Find and copy only phtunnel and luci-app-phtunnel APKs
+            echo "Finding phtunnel and luci-app-phtunnel APK packages..."
             mkdir -p "../apks_$arch_key"
-            find bin/packages -name "*.apk" -exec cp {} ../apks_$arch_key/ \; 2>/dev/null || true
+            
+            # Only copy phtunnel and luci-app-phtunnel APKs
+            find bin/packages -name "phtunnel*.apk" -exec cp {} ../apks_$arch_key/ \; 2>/dev/null || true
+            find bin/packages -name "luci-app-phtunnel*.apk" -exec cp {} ../apks_$arch_key/ \; 2>/dev/null || true
             
             echo "APK packages for $arch_key:"
             ls -lh ../apks_$arch_key/ 2>/dev/null || echo "No APKs found"
             
             if [ -z "$(ls -A ../apks_$arch_key/ 2>/dev/null)" ]; then
-              echo "WARNING: No APK packages found for $arch_key"
+              echo "WARNING: No phtunnel or luci-app-phtunnel APK packages found for $arch_key"
             fi
             
             echo ""
@@ -295,13 +298,18 @@ jobs:
           echo "Total APK packages:"
           find "$BUILD_DIR" -name "*.apk" | wc -l
       
-      - name: Collect all APK packages
+      - name: Collect phtunnel and luci-app-phtunnel APK packages
         run: |
           mkdir -p apks_all
-          find build_all -name "*.apk" -exec cp {} apks_all/ \;
+          
+          # Only collect phtunnel and luci-app-phtunnel APKs
+          find build_all -name "phtunnel*.apk" -exec cp {} apks_all/ \;
+          find build_all -name "luci-app-phtunnel*.apk" -exec cp {} apks_all/ \;
+          
+          echo "Collected APK packages:"
+          ls -lh apks_all/
           
           echo "Total APK packages: $(find apks_all -name '*.apk' | wc -l)"
-          ls -lh apks_all/
       
       - name: Upload all APK artifacts
         uses: actions/upload-artifact@v4
