@@ -1,0 +1,207 @@
+name: Build PHTunnel APK for OpenWrt 25.12.x (Single Arch)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target architecture'
+        required: true
+        type: choice
+        default: 'qualcommax'
+        options:
+          - 'qualcommax'
+          - 'x86_64'
+          - 'mediatek'
+          - 'ramips'
+          - 'ath79'
+          - 'bcm27xx'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup environment
+        run: |
+          echo "=== Initial Environment Check ==="
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          echo "Current directory: $(pwd)"
+          echo "Checking binary files:"
+          ls -la phtunnel/binaries/*/phtunnel
+          echo ""
+          
+          # Set target from input
+          TARGET="${{ github.event.inputs.target }}"
+          echo "Building for target: $TARGET"
+      
+      - name: Build single architecture
+        run: |
+          set -e
+          
+          TARGET="${{ github.event.inputs.target }}"
+          
+          # Define architecture mapping
+          case "$TARGET" in
+            qualcommax)
+              SDK_TARGET="qualcommax"
+              SDK_ARCH="ipq807x"
+              BINARY_DIR="aarch64"
+              ;;
+            x86_64)
+              SDK_TARGET="x86"
+              SDK_ARCH="x86_64"
+              BINARY_DIR="x86_64"
+              ;;
+            mediatek)
+              SDK_TARGET="mediatek"
+              SDK_ARCH="mt7622"
+              BINARY_DIR="armv7"
+              ;;
+            ramips)
+              SDK_TARGET="ramips"
+              SDK_ARCH="mt7620"
+              BINARY_DIR="mipsel"
+              ;;
+            ath79)
+              SDK_TARGET="ath79"
+              SDK_ARCH="generic"
+              BINARY_DIR="mips"
+              ;;
+            bcm27xx)
+              SDK_TARGET="bcm27xx"
+              SDK_ARCH="bcm2711"
+              BINARY_DIR="armv7"
+              ;;
+          esac
+          
+          echo "Building $TARGET ($SDK_TARGET/$SDK_ARCH, binary: $BINARY_DIR)..."
+          
+          WORK_DIR="build_${TARGET}"
+          mkdir -p "$WORK_DIR"
+          cd "$WORK_DIR"
+          
+          # Check binary
+          if [ ! -f "${GITHUB_WORKSPACE}/phtunnel/binaries/${BINARY_DIR}/phtunnel" ]; then
+            echo "ERROR: Binary not found"
+            exit 1
+          fi
+          
+          echo "Binary found!"
+          ls -lh "${GITHUB_WORKSPACE}/phtunnel/binaries/${BINARY_DIR}/phtunnel"
+          
+          # SDK URL
+          if [ "$SDK_TARGET" = "x86" ]; then
+            SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${SDK_TARGET}/${SDK_ARCH}/openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+          else
+            SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${SDK_TARGET}/${SDK_ARCH}/openwrt-sdk-25.12.2-${SDK_TARGET}-${SDK_ARCH}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+          fi
+          
+          echo "Downloading SDK: $SDK_URL"
+          curl -fL "$SDK_URL" -o sdk.tar.zst
+          
+          if [ ! -s "sdk.tar.zst" ]; then
+            echo "ERROR: SDK download failed"
+            exit 1
+          fi
+          
+          # Extract SDK
+          echo "Extracting SDK..."
+          zstd -d sdk.tar.zst -o sdk.tar
+          tar -xf sdk.tar
+          
+          SDK_DIR=$(find . -maxdepth 1 -type d -name "openwrt-sdk*" | head -1)
+          mv "$SDK_DIR" openwrt-sdk
+          cd openwrt-sdk
+          
+          # Enable APK
+          echo "CONFIG_USE_APK=y" >> .config
+          
+          # Update feeds
+          echo "Updating feeds..."
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          
+          # Copy packages
+          echo "Copying packages..."
+          mkdir -p package/phtunnel package/luci-app-phtunnel
+          cp -r "${GITHUB_WORKSPACE}/phtunnel"/* package/phtunnel/
+          cp -r "${GITHUB_WORKSPACE}/luci-app-phtunnel"/* package/luci-app-phtunnel/
+          
+          # Copy binary
+          cp "${GITHUB_WORKSPACE}/phtunnel/binaries/${BINARY_DIR}/phtunnel" package/phtunnel/binaries/phtunnel
+          chmod +x package/phtunnel/binaries/phtunnel
+          
+          # Build
+          echo "=== Building packages ==="
+          export ARCH="$BINARY_DIR"
+          export BINARY_ARCH="$BINARY_DIR"
+          export CONFIG_USE_APK=y
+          
+          make defconfig
+          echo "CONFIG_PACKAGE_phtunnel=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
+          echo "CONFIG_PACKAGE_luci-lib-jsonc=y" >> .config
+          echo "CONFIG_PACKAGE_cgi-io=y" >> .config
+          echo "CONFIG_PACKAGE_curl=y" >> .config
+          make oldconfig
+          
+          echo "Building phtunnel..."
+          make package/phtunnel/compile V=s 2>&1 | tee build.log || true
+          
+          echo "Building luci-app-phtunnel..."
+          make package/luci-app-phtunnel/compile V=s 2>&1 | tee -a build.log || true
+          
+          # Check results
+          echo "=== Checking build results ==="
+          find bin/packages -name "*.apk" -exec ls -lh {} \; || echo "No APKs found"
+          
+          # Collect APKs
+          mkdir -p "../apks"
+          find bin/packages -name "phtunnel*.apk" -exec cp {} ../apks/ \; 2>/dev/null || true
+          find bin/packages -name "luci-app-phtunnel*.apk" -exec cp {} ../apks/ \; 2>/dev/null || true
+          
+          ls -lh ../apks/ || echo "No APKs in apks directory"
+      
+      - name: Collect APKs
+        run: |
+          set -e
+          
+          echo "=== Collecting APKs ==="
+          find build_* -name "*.apk" -exec ls -lh {} \; || echo "No APKs found"
+          
+          mkdir -p apks
+          find build_* -name "*.apk" -exec cp {} apks/ \; || true
+          
+          ls -lh apks/ || echo "No APKs collected"
+          
+          APK_COUNT=$(find apks -name '*.apk' | wc -l)
+          echo "Total APKs: $APK_COUNT"
+          
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "ERROR: No APKs generated"
+            exit 1
+          fi
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: phtunnel-apk-${{ github.event.inputs.target }}
+          path: apks/*.apk
+      
+      - name: Create release (optional)
+        if: github.event.inputs.target == 'qualcommax'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f "apks/phtunnel"*.apk ]; then
+            echo "Creating release for qualcommax..."
+            gh release create v1.0.0-test-${{ github.run_number }} \
+              --title "PHTunnel v1.0.0-test-${{ github.run_number }} - ${{ github.event.inputs.target }}" \
+              --notes "Test release for ${{ github.event.inputs.target }}" \
+              apks/*.apk || true
+          fi
