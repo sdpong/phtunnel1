@@ -171,11 +171,69 @@ jobs:
             cp -r "${GITHUB_WORKSPACE}/phtunnel"/* package/phtunnel/
             cp -r "${GITHUB_WORKSPACE}/luci-app-phtunnel"/* package/luci-app-phtunnel/
             
-            # Copy correct binary for this architecture
-            echo "Copying binary for $arch_key..."
-            mkdir -p package/phtunnel/binaries
-            cp "${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel" package/phtunnel/binaries/phtunnel
-            chmod +x package/phtunnel/binaries/phtunnel
+          # Copy correct binary for this architecture
+          echo "Copying binary for $arch_key..."
+          mkdir -p package/phtunnel/binaries
+          cp "${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel" package/phtunnel/binaries/phtunnel
+          chmod +x package/phtunnel/binaries/phtunnel
+          
+          # Set ARCH variable for OpenWrt SDK
+          if [ "$arch_key" = "x86_64" ]; then
+            export ARCH="x86_64"
+          elif [ "$arch_key" = "aarch64" ]; then
+            export ARCH="aarch64"
+          elif [ "$arch_key" = "mediatek" ]; then
+            export ARCH="armv7"
+          elif [ "$arch_key" = "ramips" ]; then
+            export ARCH="mipsel"
+          elif [ "$arch_key" = "ath79" ]; then
+            export ARCH="mips"
+          elif [ "$arch_key" = "bcm27xx" ]; then
+            export ARCH="armv7"
+          elif [ "$arch_key" = "rockchip" ]; then
+            export ARCH="aarch64"
+          fi
+          
+          # Set BINARY_ARCH variable for phtunnel Makefile
+          if [ "$arch_key" = "x86_64" ]; then
+            export BINARY_ARCH="x86_64"
+          elif [ "$arch_key" = "aarch64" ]; then
+            export BINARY_ARCH="aarch64"
+          elif [ "$arch_key" = "mediatek" ]; then
+            export BINARY_ARCH="armv7"
+          elif [ "$arch_key" = "ramips" ]; then
+            export BINARY_ARCH="mipsel"
+          elif [ "$arch_key" = "ath79" ]; then
+            export BINARY_ARCH="mips"
+          elif [ "$arch_key" = "bcm27xx" ]; then
+            export BINARY_ARCH="armv7"
+          elif [ "$arch_key" = "rockchip" ]; then
+            export BINARY_ARCH="aarch64"
+          fi
+          
+          echo "ARCH=$ARCH, BINARY_ARCH=$BINARY_ARCH"
+          
+          # Set correct ARCH variable for OpenWrt SDK
+          echo "Setting ARCH variable for $arch_key..."
+          if [ "$arch_key" = "x86_64" ]; then
+            export ARCH="x86_64"
+          elif [ "$arch_key" = "qualcommax" ]; then
+            export ARCH="aarch64"
+          elif [ "$arch_key" = "aarch64" ]; then
+            export ARCH="aarch64"
+          elif [ "$arch_key" = "mediatek" ]; then
+            export ARCH="armv7"
+          elif [ "$arch_key" = "ramips" ]; then
+            export ARCH="mipsel"
+          elif [ "$arch_key" = "ath79" ]; then
+            export ARCH="mips"
+          elif [ "$arch_key" = "bcm27xx" ]; then
+            export ARCH="armv7"
+          elif [ "$arch_key" = "rockchip" ]; then
+            export ARCH="aarch64"
+          fi
+          
+          echo "ARCH=$ARCH"
             
             # Verify binary was copied
             if [ ! -f "package/phtunnel/binaries/phtunnel" ]; then
