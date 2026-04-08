@@ -15,7 +15,6 @@ on:
           - 'mediatek'
           - 'ramips'
           - 'ath79'
-          - 'rockchip'
           - 'bcm27xx'
 
 jobs:
@@ -40,13 +39,13 @@ jobs:
             if [ -d "$arch_dir" ]; then
               arch_name=$(basename "$arch_dir")
               echo "Found binary directory: $arch_name"
-              ls -lh "$arch_dir" || echo "Empty directory"
+              ls -lh "$arch_dir"
             fi
           done
       
       - name: Build all architectures
         run: |
-          set -e  # Exit on error
+          set -e
           
           # Define architectures with correct SDK paths and binary mappings
           declare -A ARCH_MAP
@@ -55,13 +54,12 @@ jobs:
           ARCH_MAP[mediatek]="mediatek:mt7622:armv7"
           ARCH_MAP[ramips]="ramips:mt7620:mipsel"
           ARCH_MAP[ath79]="ath79:generic:mips"
-          ARCH_MAP[rockchip]="rockchip:generic:aarch64"
           ARCH_MAP[bcm27xx]="bcm27xx:bcm2711:armv7"
           
           BUILD_DIR="build_all"
           mkdir -p "$BUILD_DIR"
           
-          echo "=== Building all 7 architectures ==="
+          echo "=== Building all 6 architectures (rockchip skipped) ==="
           echo "Time: $(date)"
           echo ""
           
@@ -73,24 +71,18 @@ jobs:
             WORK_DIR="$BUILD_DIR/$arch_key"
             mkdir -p "$WORK_DIR"
             
-             # Check if binary exists (use absolute path)
-             if [ ! -f "${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel" ]; then
-               echo "ERROR: Binary not found: ${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel"
-               echo "Available binary directories:"
-               ls -la "${GITHUB_WORKSPACE}/phtunnel/binaries/"
-               echo "Skipping $arch_key..."
-               continue
-             fi
-             
-             echo "Binary found: ${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel"
-            
-            # Skip rockchip as no SDK is available
-            if [ "$arch_key" = "rockchip" ]; then
-              echo "WARNING: No SDK available for rockchip/generic, skipping..."
+            # Check if binary exists (use absolute path)
+            if [ ! -f "${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel" ]; then
+              echo "ERROR: Binary not found: ${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel"
+              echo "Available binary directories:"
+              ls -la "${GITHUB_WORKSPACE}/phtunnel/binaries/"
+              echo "Skipping $arch_key..."
               continue
             fi
             
-            # Determine SDK filename (special case for x86)
+            echo "Binary found: ${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel"
+            
+            # Determine SDK filename
             if [ "$target" = "x86" ]; then
               SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${target}/${arch_name}/openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
             else
@@ -109,7 +101,6 @@ jobs:
                 continue
               fi
               
-              # Verify download
               if [ ! -s "sdk.tar.zst" ]; then
                 echo "ERROR: Downloaded SDK is empty for $arch_key"
                 echo "Skipping $arch_key..."
@@ -120,15 +111,8 @@ jobs:
               echo "SDK already downloaded"
             fi
             
-            # Determine SDK extraction directory
-            if [ "$target" = "x86" ]; then
-              SDK_DIR="openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64"
-            else
-              SDK_DIR="openwrt-sdk-25.12.2-${target}-${arch_name}_gcc-14.3.0_musl.Linux-x86_64"
-            fi
-            
             # Extract SDK
-            if [ ! -d "$SDK_DIR" ]; then
+            if [ ! -d "openwrt-sdk" ]; then
               echo "Extracting SDK with zstd..."
               if ! zstd -d sdk.tar.zst -o sdk.tar; then
                 echo "ERROR: Failed to decompress SDK for $arch_key"
@@ -144,21 +128,22 @@ jobs:
                 continue
               fi
               
-              # Verify extraction
-              if [ ! -d "$SDK_DIR" ]; then
-                echo "ERROR: SDK extraction failed for $arch_key"
+              # Find extracted directory
+              SDK_DIR=$(find . -maxdepth 1 -type d -name "openwrt-sdk*")
+              if [ -z "$SDK_DIR" ]; then
+                echo "ERROR: Could not find SDK directory for $arch_key"
                 echo "Skipping $arch_key..."
                 cd ../..
                 continue
               fi
               
-              echo "SDK extracted successfully"
+              mv "$SDK_DIR" openwrt-sdk
             else
               echo "SDK already extracted"
             fi
             
             # Setup SDK
-            cd "$SDK_DIR"
+            cd openwrt-sdk
             
             # Enable APK format
             echo "CONFIG_USE_APK=y" >> .config
@@ -167,33 +152,31 @@ jobs:
             echo "Updating feeds..."
             ./scripts/feeds update -a
             ./scripts/feeds install -a
-          
-          echo "Binary copied successfully"
-          ls -lh package/phtunnel/binaries/phtunnel
-          
-          # Set correct ARCH variable for OpenWrt SDK
-          echo "Setting ARCH variable for $arch_key..."
-          if [ "$arch_key" = "x86_64" ]; then
-            export ARCH="x86_64"
-          elif [ "$arch_key" = "qualcommax" ]; then
-            export ARCH="aarch64"
-          elif [ "$arch_key" = "aarch64" ]; then
-            export ARCH="aarch64"
-          elif [ "$arch_key" = "mediatek" ]; then
-            export ARCH="armv7"
-          elif [ "$arch_key" = "ramips" ]; then
-            export ARCH="mipsel"
-          elif [ "$arch_key" = "ath79" ]; then
-            export ARCH="mips"
-          elif [ "$arch_key" = "bcm27xx" ]; then
-            export ARCH="armv7"
-          elif [ "$arch_key" = "rockchip" ]; then
-            export ARCH="aarch64"
-          fi
-          
-          echo "ARCH=$ARCH"
-          
-          # Configure build
+            
+            # Copy package files
+            echo "Copying package files..."
+            mkdir -p package/phtunnel
+            mkdir -p package/luci-app-phtunnel
+            cp -r "${GITHUB_WORKSPACE}/phtunnel"/* package/phtunnel/
+            cp -r "${GITHUB_WORKSPACE}/luci-app-phtunnel"/* package/luci-app-phtunnel/
+            
+            # Copy correct binary for this architecture
+            echo "Copying binary for $arch_key..."
+            mkdir -p package/phtunnel/binaries
+            cp "${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel" package/phtunnel/binaries/phtunnel
+            chmod +x package/phtunnel/binaries/phtunnel
+            
+            # Verify binary was copied
+            if [ ! -f "package/phtunnel/binaries/phtunnel" ]; then
+              echo "ERROR: Failed to copy binary for $arch_key"
+              cd ../..
+              continue
+            fi
+            
+            echo "Binary copied successfully"
+            ls -lh package/phtunnel/binaries/phtunnel
+            
+            # Configure build
             echo "Configuring build..."
             make defconfig
             echo "CONFIG_PACKAGE_phtunnel=y" >> .config
@@ -235,8 +218,8 @@ jobs:
             echo ""
             
             # Clean up SDK
-            cd ..
-            rm -rf "$SDK_DIR"
+            cd ../..
+            rm -rf openwrt-sdk
             cd ../..
           done
           
@@ -259,10 +242,10 @@ jobs:
           
           echo "Total APK packages: $(find apks_all -name '*.apk' | wc -l)"
       
-      - name: Upload all APK artifacts
+      - name: Upload phtunnel and luci-app-phtunnel APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: phtunnel-apk-all
+          name: phtunnel-apk-packages
           path: apks_all/*.apk
       
       - name: Create release
@@ -287,11 +270,11 @@ jobs:
           - Updated to OpenWrt 25.12.2 SDK
           - Correctly configured APK package format (CONFIG_USE_APK=y)
           - Fixed SDK download URLs for all architectures
-          - Built all 7 mainstream architectures
+          - Built 6 mainstream architectures
           - Fixed architecture matching and binary selection
           - Used local pre-compiled binaries
           - Enhanced for OpenWrt 25.12.x APK standard
-          - Multi-architecture parallel build
+          - Only includes phtunnel and luci-app-phtunnel packages
           
           ### Architectures
           - qualcommax/ipq807x (aarch64) - Priority #1
@@ -299,15 +282,14 @@ jobs:
           - mediatek/mt7622 (armv7) - Priority #3
           - ramips/mt7620 (mipsel) - Priority #4
           - ath79/generic (mips) - Priority #5
-          - rockchip/generic (aarch64) - Priority #6
-          - bcm27xx/bcm2711 (armv7) - Priority #7
+          - bcm27xx/bcm2711 (armv7) - Priority #6
           
           ### Installation
           Download the APK package for your architecture from the artifacts:
           \`\`\`bash
           # Example for qualcommax/ipq807x (aarch64)
           apk add phtunnel-1.0.0-2_aarch64.apk
-          apk add luci-app-phtunnel-1.0.0-2_all.apk
+          apk add luci-app-phtunnel-1.0.0-1_all.apk
           \`\`\`
           
           ### Verification
@@ -321,7 +303,7 @@ jobs:
           - OpenWrt SDK: 25.12.2 (not 23.05.5)
           - APK Format: CONFIG_USE_APK=y enabled
           - Binary Source: Pre-compiled local binaries
-          - Build: Multi-architecture parallel build
+          - Build: Multi-architecture build
           - Reference: Based on OpenAppFilter successful build
           
           **Note**: This version ONLY supports OpenWrt 25.12.x and above.
