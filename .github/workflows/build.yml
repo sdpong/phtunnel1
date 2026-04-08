@@ -30,6 +30,14 @@ jobs:
         run: |
           set -e
           
+          echo "=== Initial Environment Check ==="
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          echo "Working directory: $(pwd)"
+          echo ""
+          echo "Checking binary files in repository:"
+          ls -la phtunnel/binaries/*/phtunnel
+          echo ""
+          
           # Define architectures with correct SDK paths and binary mappings
           declare -A ARCH_MAP
           ARCH_MAP[qualcommax]="qualcommax:ipq807x:aarch64"
@@ -136,10 +144,21 @@ jobs:
             
             # Copy package files
             echo "Copying package files..."
+            echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE}"
+            ls -la "${GITHUB_WORKSPACE}/phtunnel/" | head -20
             mkdir -p package/phtunnel
             mkdir -p package/luci-app-phtunnel
             cp -r "${GITHUB_WORKSPACE}/phtunnel"/* package/phtunnel/
             cp -r "${GITHUB_WORKSPACE}/luci-app-phtunnel"/* package/luci-app-phtunnel/
+            
+            # Verify Makefile was copied
+            if [ -f "package/phtunnel/Makefile" ]; then
+              echo "Makefile copied successfully"
+              head -20 package/phtunnel/Makefile
+            else
+              echo "ERROR: Makefile not found after copy!"
+              exit 1
+            fi
             
             # Copy correct binary for this architecture
             echo "Copying binary for $arch_key..."
@@ -157,6 +176,12 @@ jobs:
             echo "Binary copied successfully"
             ls -lh package/phtunnel/binaries/phtunnel
             
+            # Set environment variables for Makefile
+            echo "Setting ARCH=$binary_dir, BINARY_ARCH=$binary_dir"
+            export ARCH="$binary_dir"
+            export BINARY_ARCH="$binary_dir"
+            export CONFIG_USE_APK=y
+            
             # Configure build
             echo "Configuring build..."
             make defconfig
@@ -169,7 +194,11 @@ jobs:
             
             # Build phtunnel
             echo "Building phtunnel package..."
-            export CONFIG_USE_APK=y
+            echo "Environment: ARCH=$ARCH, BINARY_ARCH=$BINARY_ARCH, CONFIG_USE_APK=$CONFIG_USE_APK"
+            echo "Current directory: $(pwd)"
+            echo "Package directory contents:"
+            ls -la package/phtunnel/
+            
             if ! make package/phtunnel/compile V=s; then
               echo "WARNING: phtunnel build may have had issues, checking for output..."
             fi
