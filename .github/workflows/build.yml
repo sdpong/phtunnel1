@@ -167,6 +167,7 @@ jobs:
             # Copy package files
             echo "Copying package files..."
             mkdir -p package/phtunnel
+            mkdir -p package/luci-app-phtunnel
             cp -r "${GITHUB_WORKSPACE}/phtunnel"/* package/phtunnel/
             cp -r "${GITHUB_WORKSPACE}/luci-app-phtunnel"/* package/luci-app-phtunnel/
             
