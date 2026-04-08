@@ -7,29 +7,6 @@ PKG_RELEASE:=2
 
  # 本地二进制文件路径
  BINARY_DIR:=$(CURDIR)/binaries
- 
- # 架构映射 - 直接检查OpenWrt架构变量
- # 如果BINARY_ARCH没有定义，则根据ARCH设置默认值
- ifndef BINARY_ARCH
-   ifeq ($(ARCH),x86_64)
-     BINARY_ARCH:=x86_64
-   else ifeq ($(ARCH),x86)
-     BINARY_ARCH:=x86_64
-   else ifeq ($(ARCH),aarch64)
-     BINARY_ARCH:=aarch64
-   else ifeq ($(ARCH),armv7)
-     BINARY_ARCH:=armv7
-   else ifeq ($(ARCH),arm)
-     BINARY_ARCH:=armv7
-   else ifeq ($(ARCH),mips)
-     BINARY_ARCH:=mips
-   else ifeq ($(ARCH),mipsel)
-     BINARY_ARCH:=mipsel
-   else
-     # 默认使用x86_64
-     BINARY_ARCH:=x86_64
-   endif
- endif
 
 # 源代码信息
 PKG_HASH:=skip
@@ -62,15 +39,31 @@ endef
 define Build/Prepare
   mkdir -p $(PKG_BUILD_DIR)
   
+  # 通过shell命令确定架构
+  ARCH_CHECK=$$( \
+    if [ "$(ARCH)" = "x86_64" ] || [ "$(ARCH)" = "x86" ]; then \
+      echo "x86_64"; \
+    elif [ "$(ARCH)" = "aarch64" ]; then \
+      echo "aarch64"; \
+    elif [ "$(ARCH)" = "armv7" ] || [ "$(ARCH)" = "arm" ]; then \
+      echo "armv7"; \
+    elif [ "$(ARCH)" = "mips" ]; then \
+      echo "mips"; \
+    elif [ "$(ARCH)" = "mipsel" ]; then \
+      echo "mipsel"; \
+    else \
+      echo "x86_64"; \
+    fi)
+  
   # 检查本地二进制文件
-  BINARY_FILE="$(BINARY_DIR)/$(BINARY_ARCH)/phtunnel"
+  BINARY_FILE="$(BINARY_DIR)/$$(ARCH_CHECK)/phtunnel"
   
   if [ -f "$(BINARY_FILE)" ]; then
-    echo "Using phtunnel binary for $(BINARY_ARCH)"
+    echo "Using phtunnel binary for $$(ARCH_CHECK)"
     cp "$(BINARY_FILE)" "$(PKG_BUILD_DIR)/phtunnel"
     chmod +x "$(PKG_BUILD_DIR)/phtunnel"
   else
-    echo "Error: phtunnel binary not found: $(BINARY_ARCH)"
+    echo "Error: phtunnel binary not found: $$(ARCH_CHECK)"
     echo "Available binary architectures:"
     ls -la "$(BINARY_DIR)"/
     exit 1
