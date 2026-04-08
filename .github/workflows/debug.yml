@@ -14,8 +14,8 @@ on:
           - 'x86_64'
           - 'mediatek'
           - 'ramips'
-          - ath79'
-          -bcm27xx'
+          - 'ath79'
+          - 'bcm27xx'
 
 jobs:
   build:
