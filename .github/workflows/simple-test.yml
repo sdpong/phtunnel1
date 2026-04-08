@@ -1,0 +1,32 @@
+name: Simple Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: List files
+        run: |
+          echo "Working directory: $(pwd)"
+          echo ""
+          echo "All files:"
+          ls -la
+          echo ""
+          echo "Binary files:"
+          ls -la phtunnel/binaries/*/phtunnel || echo "Not found"
+          echo ""
+          echo "Makefile:"
+          head -20 phtunnel/Makefile
+      
+      - name: Verify environment
+        run: |
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          echo "Runner OS: $(uname -a)"
+          echo "Python version: $(python3 --version)"
+          echo "Bash version: $BASH_VERSION"
