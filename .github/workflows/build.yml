@@ -51,7 +51,7 @@ jobs:
           # Define architectures with correct SDK paths and binary mappings
           declare -A ARCH_MAP
           ARCH_MAP[qualcommax]="qualcommax:ipq807x:aarch64"
-          ARCH_MAP[x86_64]="x86:64:x86_64"
+          ARCH_MAP[x86_64]="x86:x86_64:x86_64"
           ARCH_MAP[mediatek]="mediatek:mt7622:armv7"
           ARCH_MAP[ramips]="ramips:mt7620:mipsel"
           ARCH_MAP[ath79]="ath79:generic:mips"

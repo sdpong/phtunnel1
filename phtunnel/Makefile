@@ -8,26 +8,51 @@ PKG_RELEASE:=2
 # 本地二进制文件路径
 BINARY_DIR:=$(CURDIR)/binaries
 
-# 架构映射
-# 将 OpenWrt 目标架构映射到本地二进制文件架构
-ifeq ($(ARCH),x86_64)
+# 直接的架构检查，使用简单的逻辑
+# 支持：x86, x86_64, aarch64, armv7, mips, mipsel
+# OpenWrt 25.12.x SDK中实际的$(ARCH)变量值：
+
+# 检查x86
+if [ "$(ARCH)" = "x86" ]; then
   BINARY_ARCH:=x86_64
-else ifeq ($(ARCH),aarch64)
+  # 检查x86_64
+elif [ "$(ARCH)" = "x86_64" ]; then
+  BINARY_ARCH:=x86_64
+  # 检查aarch64
+elif [ "$(ARCH)" = "aarch64" ]; then
   BINARY_ARCH:=aarch64
-else ifeq ($(ARCH),arm_cortex-a7)
+  # 检查armv7
+elif [ "$(ARCH)" = "armv7" ]; then
   BINARY_ARCH:=armv7
-else ifeq ($(ARCH),arm_cortex-a9)
-  BINARY_ARCH:=armv7
-else ifeq ($(ARCH),mips_24kc)
+  # 检查mips
+elif [ "$(ARCH)" = "mips" ]; then
   BINARY_ARCH:=mips
-else ifeq ($(ARCH),mipsel_24kc)
+  # 检查mipsel
+elif [ "$(ARCH)" = "mipsel" ]; then
+  # 检查arm_cortex-a7 (armv7)
+  BINARY_ARCH:=armv7
+  # 检查arm_cortex-a9 (armv7)
+elif [ "$(ARCH)" = "arm_cortex-a7" ]; then
+  BINARY_ARCH:=armv7
+  # 检查arm_cortex-a9 (armv7)
+elif [ "$(ARCH)" = "arm_cortex-a9" ]; then
+  BINARY_ARCH:=armv7
+  # 检查mips_24kc
+elif [ "$(ARCH)" = "mips_24kc" ]; then
+  BINARY_ARCH:=mips
+  # 检查mipsel_24kc
+elif [ "$(ARCH)" = "mipsel_24kc" ]; then
   BINARY_ARCH:=mipsel
-else ifeq ($(ARCH),ath79)
+  # 检查ath79 (mips)
+elif [ "$(ARCH)" = "ath79" ]; then
   BINARY_ARCH:=mips
-else ifeq ($(ARCH),rockchip)
+  # 检查rockchip (aarch64)
+elif [ "$(ARCH)" = "rockchip" ]; then
   BINARY_ARCH:=aarch64
-else ifeq ($(ARCH),bcm27xx)
+  # 检查bcm27xx (armv7)
+elif [ "$(ARCH)" = "bcm27xx" ]; then
   BINARY_ARCH:=armv7
+  # 其他
 else
   BINARY_ARCH:=x86_64
 endif
@@ -88,7 +113,7 @@ define Package/phtunnel/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
 	$(INSTALL_DIR) $(1)/usr/sbin
-	
+
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/phtunnel $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/etc/init.d/* $(1)/etc/init.d/
 	$(INSTALL_CONF) ./files/etc/config/* $(1)/etc/config/
