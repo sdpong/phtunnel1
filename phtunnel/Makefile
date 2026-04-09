@@ -30,19 +30,41 @@ endef
 
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
-	BINARY_FILE="./binaries/$(BINARY_ARCH)/phtunnel"
+	BINARY_FILE="$(CURDIR)/binaries/$(BINARY_ARCH)/phtunnel"
 	if [ -f "$(BINARY_FILE)" ]; then \
 		cp "$(BINARY_FILE)" "$(PKG_BUILD_DIR)/phtunnel"; \
 		chmod +x "$(PKG_BUILD_DIR)/phtunnel"; \
 	else \
 		echo "Error: phtunnel binary not found: $(BINARY_ARCH)"; \
-		ls -la ./binaries/; \
+		ls -la "$(CURDIR)/binaries/"; \
 		exit 1; \
 	fi
 endef
 
+define Build/Prepare
+	mkdir -p $(PKG_BUILD_DIR)
+	BINARY_FILE="$(CURDIR)/binaries/$(BINARY_ARCH)/phtunnel"
+	if [ -f "$(BINARY_FILE)" ]; then \
+		cp "$(BINARY_FILE)" "$(PKG_BUILD_DIR)/phtunnel"; \
+		chmod +x "$(PKG_BUILD_DIR)/phtunnel"; \
+	else \
+		echo "Error: phtunnel binary not found: $(BINARY_ARCH)"; \
+		ls -la "$(CURDIR)/binaries/"; \
+		exit 1; \
+	fi
+endef
+
+define Build/Configure
+	true
+endef
+
 define Build/Compile
 	true
+endef
+
+define Package/phtunnel/preinst
+#!/bin/sh
+exit 0
 endef
 
 define Package/phtunnel/install
@@ -54,6 +76,12 @@ define Package/phtunnel/install
 	$(INSTALL_BIN) ./files/etc/init.d/* $(1)/etc/init.d/
 	$(INSTALL_CONF) ./files/etc/config/* $(1)/etc/config/
 	$(INSTALL_BIN) ./files/etc/hotplug.d/iface/* $(1)/etc/hotplug.d/iface/
+endef
+
+define Package/phtunnel/postinst
+#!/bin/sh
+/etc/init.d/phtunnel enable
+/etc/init.d/phtunnel restart
 endef
 
 $(eval $(call BuildPackage,phtunnel))
