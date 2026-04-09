@@ -104,25 +104,30 @@ jobs:
           
           cd build
           
-          # Find and list all APKs
-          echo "=== All APKs ==="
-          find . -name "phtunnel*.apk" -exec ls -lh {} \;
-          
+          # Find and collect all APKs
           TOTAL_APKS=$(find . -name "phtunnel*.apk" | wc -l)
-          APK_SIZE=$(find . -name "phtunnel*.apk" -exec ls -lh {} \; | head -1 | awk '{print $5}')
           
-          echo "Total APKs: $TOTAL_APKS, Size: $APK_SIZE"
+          if [ "$TOTAL_APKS" -eq 0 ]; then
+            echo "No APKs found, skipping release"
+            exit 0
+          fi
+          
+          # Display APK info
+          find . -name "phtunnel*.apk" -exec ls -lh {} \;
+          echo "Total APKs: $TOTAL_APKS"
+          
+          # Create new release with APK upload
+          RELEASE_TAG="v1.0.5"
           
           # Create release notes
           cat > release_notes.md << EOF
-          # PHTunnel v1.0.3 for OpenWrt 25.12.x
+          # PHTunnel v1.0.5 for OpenWrt 25.12.x
           
           ## Successfully Built Architectures
           - **qualcommax (aarch64_cortex-a53)** ✅
           
           ## Package Information
           - Total packages: $TOTAL_APKS
-          - Package size: $APK_SIZE
           - Version: 1.0.0-r2
           
           ## Installation
@@ -131,35 +136,29 @@ jobs:
           
           ## Project Status
           - ✅ Build system working
-          - ✅ Multi-architecture builds successful
-          - ✅ APK format support
+          - ✅ APK packages successfully generated
+          - ✅ Release system operational
           - ✅ Artifact upload working
-          - ✅ Release automation working
           
           ## System Requirements
           - OpenWrt 25.12.x
           - APK package support
           - Architecture: aarch64_cortex-a53 (qualcommax)
-          
-          ## Next Steps
-          - Test on actual OpenWrt devices
-          - Add remaining architectures
-          - Complete luci-app-phtunnel web interface
           EOF
           
-          # Create or update release with new version to avoid conflicts
-          RELEASE_TAG="v1.0.4"
-          echo "Using release tag: $RELEASE_TAG"
+          # Create release
+          echo "Creating release $RELEASE_TAG..."
+          gh release create "$RELEASE_TAG" \
+            --title "PHTunnel v1.0.5 for OpenWrt 25.12.x" \
+            --notes-file release_notes.md
           
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Updating existing release..."
-            gh release edit "$RELEASE_TAG" --notes-file release_notes.md
-          else
-            echo "Creating new release..."
-            gh release create "$RELEASE_TAG" \
-              --title "PHTunnel v1.0.4 for OpenWrt 25.12.x" \
-              --notes-file release_notes.md \
-              $(find . -name "phtunnel*.apk" | tr '\n' ' ')
-          fi
+          # Upload APKs to release
+          echo "Uploading APKs to release..."
+          for apk in phtunnel*.apk; do
+            gh release upload "$RELEASE_TAG" "$apk" --clobber
+            echo "Uploaded: $apk"
+          done
+          
+          echo "Release created successfully!"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
