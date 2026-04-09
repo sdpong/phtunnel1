@@ -57,30 +57,16 @@ endef
    true
  endef
  
- define Package/luci-app-phtunnel/install
-  $(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller
-  $(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller/oray
-  $(INSTALL_DIR) $(1)/usr/lib/lua/luci/model/cbi
-  $(INSTALL_DIR) $(1)/usr/lib/lua/luci/model/cbi/oray
-  $(INSTALL_DIR) $(1)/usr/lib/lua/luci/view
-  $(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/oray
-  $(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
-  $(INSTALL_DIR) $(1)/usr/share/luci/menu.d
-  $(INSTALL_DIR) $(1)/usr/share/luci/i18n
-
-  # LuCI 模块文件
-  if [ -d $(PKG_BUILD_DIR)/luasrc ]; then
-    $(CP) $(PKG_BUILD_DIR)/luasrc/* $(1)/usr/lib/lua/luci/
-  fi
-
-  # RPC ACL 配置
-  if [ -d $(PKG_BUILD_DIR)/root ]; then
-    $(CP) $(PKG_BUILD_DIR)/root/* $(1)/
-  fi
- 
-   # 国际化文件
-  if [ -d $(PKG_BUILD_DIR)/po ]; then \
-    $(foreach lang,$(filter-out templates,$(notdir $(wildcard $(PKG_BUILD_DIR)/po/*))), \
-      $(INSTALL_DATA) $(PKG_BUILD_DIR)/po/$(lang)/$(PKG_NAME).po $(1)/usr/share/luci/i18n/$(PKG_NAME).$(lang).po; \
-   fi \
+define Package/luci-app-phtunnel/install
+ $(INSTALL_DIR) $(1)/usr/share/lua/luci/controller
+ $(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller/oray
+ $(INSTALL_DIR) $(1)/usr/lib/lua/luci/model/cbi
+ $(INSTALL_DIR) $(1)/usr/lib/lua/luci/model/cbi/oray
+ $(INSTALL_DIR) $(1)/usr/share/lua/luci/view
+ $(INSTALL_DIR) $(1)/usr/share/lua/luci/view/oray
+ $(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
+ $(INSTALL_DIR) $(1)/usr/share/luci/menu.d
+ $(INSTALL_DIR) $(1)/usr/share/luci/i18n
 endef
+
+$(eval $(call BuildPackage,luci-app-phtunnel))
