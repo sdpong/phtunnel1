@@ -195,16 +195,10 @@ jobs:
             echo "CONFIG_PACKAGE_curl=y" >> .config
             make oldconfig
             
-            # Build phtunnel
+             # Build phtunnel
             echo "Building phtunnel package..."
             echo "Environment: ARCH=$ARCH, BINARY_ARCH=$BINARY_ARCH, CONFIG_USE_APK=$CONFIG_USE_APK"
             echo "Current directory: $(pwd)"
-            echo "Package directory contents:"
-            ls -la package/phtunnel/
-            echo ""
-            echo "Checking for binary files before build:"
-            ls -la package/phtunnel/binaries/ || echo "No binaries directory"
-            echo ""
             
             # Capture actual build output and errors
             echo "=== Starting phtunnel compilation ==="
@@ -212,16 +206,6 @@ jobs:
               echo "=== PHTUNNEL BUILD FAILED ==="
               echo "Build output:"
               cat phtunnel_build.log
-              exit 1
-            }
-            
-            # Build luci-app-phtunnel
-            echo "Building luci-app-phtunnel package..."
-            echo "=== Starting luci-app-phtunnel compilation ==="
-            make package/luci-app-phtunnel/compile V=s 2>&1 | tee luci_build.log || {
-              echo "=== LUCI BUILD FAILED ==="
-              echo "Build output:"
-              cat luci_build.log
               exit 1
             }
             
