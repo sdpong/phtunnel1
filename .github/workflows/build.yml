@@ -62,14 +62,21 @@ jobs:
           WORK_DIR="$BUILD_DIR/$arch_key"
           mkdir -p "$WORK_DIR"
           
-          # Check if binary exists
-          if [ ! -f "phtunnel/binaries/$binary_dir/phtunnel" ]; then
-            echo "ERROR: Binary not found: phtunnel/binaries/$binary_dir/phtunnel"
-            echo "Available binaries:"
-            ls -la phtunnel/binaries/
-            echo "Skipping $arch_key..."
-            continue
-          fi
+           # Check if binary exists
+           if [ ! -f "phtunnel/binaries/$binary_dir/phtunnel" ]; then
+             echo "WARNING: Binary not found: phtunnel/binaries/$binary_dir/phtunnel"
+             echo "WARNING: Skipping $arch_key architecture"
+             continue
+           fi
+           
+           # Check if binary is valid (should be at least 100KB)
+           BINARY_SIZE=$(stat -f%z "phtunnel/binaries/$binary_dir/phtunnel" 2>/dev/null || stat -c%s "phtunnel/binaries/$binary_dir/phtunnel" 2>/dev/null || echo "0")
+           if [ "$BINARY_SIZE" -lt 102400 ]; then
+             echo "WARNING: Binary file too small: $BINARY_SIZE bytes (< 100KB)"
+             echo "WARNING: This suggests an invalid or placeholder binary for $arch_key"
+             echo "WARNING: Skipping $arch_key architecture"
+             continue
+           fi
           
           echo "Binary found: phtunnel/binaries/$binary_dir/phtunnel"
             
