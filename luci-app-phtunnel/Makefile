@@ -77,12 +77,12 @@ endef
   if [ -d $(PKG_BUILD_DIR)/root ]; then
     $(CP) $(PKG_BUILD_DIR)/root/* $(1)/
   fi
-
+ 
   # 国际化文件
-  if [ -d $(PKG_BUILD_DIR)/po ]; then
+  if [ -d $(PKG_BUILD_DIR)/po ]; then \
     $(foreach lang,$(filter-out templates,$(notdir $(wildcard $(PKG_BUILD_DIR)/po/*))), \
-      $(INSTALL_DATA) $(PKG_BUILD_DIR)/po/$(lang)/$(PKG_NAME).po $(1)/usr/share/luci/i18n/$(PKG_NAME).$(lang).po;)
+      $(INSTALL_DATA) $(PKG_BUILD_DIR)/po/$(lang)/$(PKG_NAME).po $(1)/usr/share/luci/i18n/$(PKG_NAME).$(lang).po;) \
   fi
 endef
-
+ 
 $(eval $(call BuildPackage,$(PKG_NAME)))
