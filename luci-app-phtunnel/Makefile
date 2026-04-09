@@ -57,7 +57,7 @@ endef
    true
  endef
  
- define Package/$(PKG_NAME)/install
+ define Package/luci-app-phtunnel/install
   $(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller
   $(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller/oray
   $(INSTALL_DIR) $(1)/usr/lib/lua/luci/model/cbi
