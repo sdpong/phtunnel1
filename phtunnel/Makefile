@@ -3,7 +3,6 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=phtunnel
 PKG_VERSION:=1.0.0
 PKG_RELEASE:=2
-
 PKG_HASH:=skip
 PKG_FLAGS:=nonshared
 PKG_MAINTAINER:=Oray <developer@oray.com>
@@ -32,29 +31,12 @@ endef
 
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
-	ARCH_CHECK=$$( \
-		if [ "$(ARCH)" = "x86_64" ] || [ "$(ARCH)" = "x86" ]; then \
-			echo "x86_64"; \
-		elif [ "$(ARCH)" = "aarch64" ]; then \
-			echo "aarch64"; \
-		elif [ "$(ARCH)" = "armv7" ] || [ "$(ARCH)" = "arm" ]; then \
-			echo "armv7"; \
-		elif [ "$(ARCH)" = "mips" ]; then \
-			echo "mips"; \
-		elif [ "$(ARCH)" = "mipsel" ]; then \
-			echo "mipsel"; \
-		else \
-			echo "x86_64"; \
-		fi)
-	BINARY_FILE="$(CURDIR)/binaries/$$(ARCH_CHECK)/phtunnel"
-	
+	BINARY_FILE="$(CURDIR)/binaries/$(BINARY_ARCH)/phtunnel
 	if [ -f "$(BINARY_FILE)" ]; then \
-		echo "Using phtunnel binary for $$(ARCH_CHECK)"; \
 		cp "$(BINARY_FILE)" "$(PKG_BUILD_DIR)/phtunnel"; \
 		chmod +x "$(PKG_BUILD_DIR)/phtunnel"; \
 	else \
-		echo "Error: phtunnel binary not found: $$(ARCH_CHECK)"; \
-		echo "Available binary architectures:"; \
+		echo "Error: phtunnel binary not found: $(BINARY_ARCH)"; \
 		ls -la "$(CURDIR)/binaries/"; \
 		exit 1; \
 	fi
