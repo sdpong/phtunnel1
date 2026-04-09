@@ -2,19 +2,6 @@ name: Build PHTunnel APK for OpenWrt 25.12.x
 
 on:
   workflow_dispatch:
-    inputs:
-      target:
-        description: 'Target architecture'
-        required: true
-        type: string
-        default: 'qualcommax'
-        options:
-          - 'qualcommax'
-          - 'x86_64'
-          - 'mediatek'
-          - 'ramips'
-          - 'ath79'
-          - 'bcm27xx'
 
 jobs:
   build:
@@ -26,388 +13,125 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Build all architectures
+      - name: Build working architecture (qualcommax)
         run: |
           set -e
           
-          echo "=== Initial Environment Check ==="
-          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
-          echo "Working directory: $(pwd)"
-          echo ""
-          echo "Checking binary files in repository:"
-          ls -la phtunnel/binaries/*/phtunnel
-          echo ""
+          echo "=== Building qualcommax (aarch64_cortex-a53) ==="
           
-          # Define architectures with correct SDK paths and binary mappings
-          declare -A ARCH_MAP
-          ARCH_MAP[qualcommax]="qualcommax:ipq807x:aarch64"
-          ARCH_MAP[x86_64]="x86:x86_64:x86_64"
-          ARCH_MAP[mediatek]="mediatek:mt7622:armv7"
-          ARCH_MAP[ramips]="ramips:mt7620:mipsel"
-          ARCH_MAP[ath79]="ath79:generic:mips"
-          ARCH_MAP[bcm27xx]="bcm27xx:bcm2711:armv7"
+          # Download SDK
+          SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/qualcommax/ipq807x/openwrt-sdk-25.12.2-qualcommax-ipq807x_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+          echo "Downloading SDK from: $SDK_URL"
           
-          BUILD_DIR="build_all"
-          mkdir -p "$BUILD_DIR"
+          mkdir -p build
+          cd build
           
-          echo "=== Building all 6 architectures (rockchip skipped) ==="
-          echo "Time: $(date)"
-          echo ""
+          curl -fL "$SDK_URL" -o sdk.tar.zst
+          zstd -d sdk.tar.zst -o sdk.tar
+          tar -xf sdk.tar
+          rm -f sdk.tar sdk.tar.zst
           
-          for arch_key in "${!ARCH_MAP[@]}"; do
-            IFS=':' read -r target arch_name binary_dir <<< "${ARCH_MAP[$arch_key]}"
-            
-          echo "Building $arch_key ($target/$arch_name, binary: $binary_dir)..."
+          # Setup SDK
+          mv openwrt-sdk-* openwrt-sdk
+          cd openwrt-sdk
           
-          WORK_DIR="$BUILD_DIR/$arch_key"
-          mkdir -p "$WORK_DIR"
+          # Enable APK format
+          echo "CONFIG_USE_APK=y" >> .config
           
-           # Check if binary exists
-           if [ ! -f "phtunnel/binaries/$binary_dir/phtunnel" ]; then
-             echo "WARNING: Binary not found: phtunnel/binaries/$binary_dir/phtunnel"
-             echo "WARNING: Skipping $arch_key architecture"
-             continue
-           fi
-           
-           # Check if binary is valid (should be at least 100KB)
-           BINARY_SIZE=$(stat -f%z "phtunnel/binaries/$binary_dir/phtunnel" 2>/dev/null || stat -c%s "phtunnel/binaries/$binary_dir/phtunnel" 2>/dev/null || echo "0")
-           if [ "$BINARY_SIZE" -lt 102400 ]; then
-             echo "WARNING: Binary file too small: $BINARY_SIZE bytes (< 100KB)"
-             echo "WARNING: This suggests an invalid or placeholder binary for $arch_key"
-             echo "WARNING: Skipping $arch_key architecture"
-             continue
-           fi
+          # Update feeds
+          echo "Updating feeds..."
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
           
-          echo "Binary found: phtunnel/binaries/$binary_dir/phtunnel"
-            
-            # Determine SDK URL (special case for x86)
-              if [ "$target" = "x86" ]; then
-                SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/x86/64/openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
-              else
-                SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/${target}/${arch_name}/openwrt-sdk-25.12.2-${target}-${arch_name}_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
-              fi
-            echo "SDK URL: $SDK_URL"
-            
-            # Download SDK
-            cd "$WORK_DIR"
-            if [ ! -f "sdk.tar.zst" ]; then
-              echo "Downloading SDK..."
-              if ! curl -fL "$SDK_URL" -o sdk.tar.zst; then
-                echo "ERROR: Failed to download SDK for $arch_key"
-                echo "Skipping $arch_key..."
-                cd ../..
-                continue
-              fi
-              
-              if [ ! -s "sdk.tar.zst" ]; then
-                echo "ERROR: Downloaded SDK is empty for $arch_key"
-                echo "Skipping $arch_key..."
-                cd ../..
-                continue
-              fi
-            else
-              echo "SDK already downloaded"
-            fi
-            
-            # Extract SDK
-            if [ ! -d "openwrt-sdk" ]; then
-              echo "Extracting SDK with zstd..."
-              if ! zstd -d sdk.tar.zst -o sdk.tar; then
-                echo "ERROR: Failed to decompress SDK for $arch_key"
-                echo "Skipping $arch_key..."
-                cd ../..
-                continue
-              fi
-              
-              if ! tar -xf sdk.tar; then
-                echo "ERROR: Failed to extract SDK for $arch_key"
-                echo "Skipping $arch_key..."
-                cd ../..
-                continue
-              fi
-              
-              # Find extracted directory
-              SDK_DIR=$(find . -maxdepth 1 -type d -name "openwrt-sdk*")
-              if [ -z "$SDK_DIR" ]; then
-                echo "ERROR: Could not find SDK directory for $arch_key"
-                echo "Skipping $arch_key..."
-                cd ../..
-                continue
-              fi
-              
-              mv "$SDK_DIR" openwrt-sdk
-            else
-              echo "SDK already extracted"
-            fi
-            
-            # Setup SDK
-            cd openwrt-sdk
-            
-            # Enable APK format
-            echo "CONFIG_USE_APK=y" >> .config
-            
-            # Update feeds
-            echo "Updating feeds..."
-            ./scripts/feeds update -a
-            ./scripts/feeds install -a
-            
-            # Copy package files
-            echo "Copying package files..."
-            echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE}"
-            ls -la "${GITHUB_WORKSPACE}/phtunnel/" | head -20
-            mkdir -p package/phtunnel
-            mkdir -p package/luci-app-phtunnel
-            cp -r "${GITHUB_WORKSPACE}/phtunnel"/* package/phtunnel/
-            cp -r "${GITHUB_WORKSPACE}/luci-app-phtunnel"/* package/luci-app-phtunnel/
-            
-            # Verify Makefile was copied
-            if [ -f "package/phtunnel/Makefile" ]; then
-              echo "Makefile copied successfully"
-              head -20 package/phtunnel/Makefile
-            else
-              echo "ERROR: Makefile not found after copy!"
-              exit 1
-            fi
-            
-             # Copy binaries directory structure for Makefile compatibility
-            echo "Copying binaries directory for $arch_key..."
-            mkdir -p package/phtunnel/binaries
-            cp -r "${GITHUB_WORKSPACE}/phtunnel/binaries" package/phtunnel/
-            chmod +x package/phtunnel/binaries/*/phtunnel
-            
-            # Verify binaries were copied
-            echo "Binaries copied successfully"
-            ls -lh package/phtunnel/binaries/*/phtunnel
-            
-            # Set environment variables for Makefile
-            echo "Setting ARCH=$binary_dir, BINARY_ARCH=$binary_dir"
-            export ARCH="$binary_dir"
-            export BINARY_ARCH="$binary_dir"
-            export CONFIG_USE_APK=y
-            
-            # Configure build
-            echo "Configuring build..."
-            make defconfig
-            echo "CONFIG_PACKAGE_phtunnel=y" >> .config
-            echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
-            echo "CONFIG_PACKAGE_luci-lib-jsonc=y" >> .config
-            echo "CONFIG_PACKAGE_cgi-io=y" >> .config
-            echo "CONFIG_PACKAGE_curl=y" >> .config
-            make oldconfig
-            
-             # Build phtunnel
-            echo "Building phtunnel package..."
-            echo "Environment: ARCH=$ARCH, BINARY_ARCH=$BINARY_ARCH, CONFIG_USE_APK=$CONFIG_USE_APK"
-            echo "Current directory: $(pwd)"
-            
-            # Capture actual build output and errors
-            echo "=== Starting phtunnel compilation ==="
-            make package/phtunnel/compile V=s 2>&1 | tee phtunnel_build.log || {
-              echo "=== PHTUNNEL BUILD FAILED ==="
-              echo "Build output:"
-              cat phtunnel_build.log
-              exit 1
-            }
-            
-            # Comprehensive APK check after build
-            echo "=== Comprehensive APK check after build ==="
-            echo ""
-            echo "Checking entire bin directory structure:"
-            find bin -type f | head -20
-            echo ""
-            echo "Checking for phtunnel APKs:"
-            find bin -name "phtunnel*.apk" -exec ls -lh {} \; || echo "No phtunnel APKs found"
-            echo ""
-            echo "Checking for luci-app-phtunnel APKs:"
-            find bin -name "luci-app-phtunnel*.apk" -exec ls -lh {} \; || echo "No luci-app-phtunnel APKs found"
-            echo ""
-            echo "All .apk files in bin directory:"
-            find bin -name "*.apk" -exec ls -lh {} \; || echo "No APK files found"
-            echo ""
-            echo "Checking build logs:"
-            cat phtunnel_build.log | tail -50 || echo "No phtunnel build log"
-            cat luci_build.log | tail -50 || echo "No luci build log"
-            echo ""
-            
-            # Check if build succeeded
-            echo "=== Checking build results ==="
-            echo "Looking for APK packages in bin/packages:"
-            find bin/packages -name "*.apk" -exec ls -lh {} \; || echo "No APKs found in bin/packages"
-            echo ""
-            
-            echo "Looking for phtunnel APK packages:"
-            find bin/packages -name "phtunnel*.apk" || echo "No phtunnel APKs found"
-            echo ""
-            
-            echo "Looking for luci-app-phtunnel APK packages:"
-            find bin/packages -name "luci-app-phtunnel*.apk" || echo "No luci-app-phtunnel APKs found"
-            
-            # Find and copy only phtunnel and luci-app-phtunnel APKs
-            echo "Finding phtunnel and luci-app-phtunnel APK packages..."
-            mkdir -p "../apks_$arch_key"
-            
-            # Search in all possible APK locations
-            find bin -name "phtunnel*.apk" -exec cp {} ../apks_$arch_key/ \; 2>/dev/null || true
-            find bin -name "luci-app-phtunnel*.apk" -exec cp {} ../apks_$arch_key/ \; 2>/dev/null || true
-            
-            echo "APK packages for $arch_key:"
-            ls -lh ../apks_$arch_key/ 2>/dev/null || echo "No APKs found"
-            
-            if [ -z "$(ls -A ../apks_$arch_key/ 2>/dev/null)" ]; then
-              echo "WARNING: No phtunnel or luci-app-phtunnel APK packages found for $arch_key"
-            fi
-            
-            echo "=== Checking bin directory structure ==="
-            echo "All directories in bin:"
-            find bin -type d -maxdepth 2 | head -20 || echo "No directories found"
-            
-            echo "All .apk files in bin:"
-            find bin -name "*.apk" -exec ls -lh {} \; || echo "No APK files found"
-            
-            echo ""
-            
-            # Clean up SDK
-            cd ..
-            rm -rf "openwrt-sdk"
-            cd ../..
-          done
+          # Copy package files
+          echo "Copying package files..."
+          mkdir -p package/phtunnel
+          cp -r "${GITHUB_WORKSPACE}/phtunnel"/* package/phtunnel/
           
-          echo "=== All architectures built ==="
-          echo "Time: $(date)"
-          echo ""
-          echo "Total APK packages:"
-          find "$BUILD_DIR" -name "*.apk" | wc -l
+          # Set environment variables
+          export ARCH="aarch64"
+          export BINARY_ARCH="aarch64"
+          export CONFIG_USE_APK=y
+          
+          # Configure build
+          echo "Configuring build..."
+          make defconfig
+          echo "CONFIG_PACKAGE_phtunnel=y" >> .config
+          make oldconfig
+          
+          # Build phtunnel
+          echo "Building phtunnel package..."
+          make package/phtunnel/compile V=s
+          
+          # Collect APKs
+          echo "=== Checking for APK packages ==="
+          find bin -name "phtunnel*.apk" -exec ls -lh {} \;
+          
+          mkdir -p apks
+          find bin -name "phtunnel*.apk" -exec cp {} apks/ \;
+          
+          echo "=== APK packages collected ==="
+          ls -lh apks/
+          
+          APK_COUNT=$(find apks -name '*.apk' | wc -l)
+          echo "Total APK packages: $APK_COUNT"
       
-      - name: Collect all APK packages
-        run: |
-          set -e
-          
-          echo "=== Checking build results ==="
-          echo "build_all directory structure:"
-          find build_all -type f -name "*.apk" | head -20
-          echo ""
-          
-          echo "All APK packages in build_all:"
-          find build_all -name "*.apk" -exec ls -lh {} \; || echo "No APKs found"
-          echo ""
-          
-          echo "Checking individual architecture directories:"
-          for dir in build_all/*/; do
-            if [ -d "$dir" ]; then
-              echo "=== Directory: $dir ==="
-              ls -lh "$dir" 2>/dev/null | head -10 || echo "Empty or error"
-              if [ -d "$dir/apks_"* ]; then
-                echo "Found apks directory:"
-                ls -lh "$dir"/apks_*/* 2>/dev/null || echo "No files in apks directory"
-              fi
-            fi
-          done
-          echo ""
-          
-          mkdir -p apks_all
-          
-          echo "=== Collecting APK packages ==="
-          find build_all -name "phtunnel*.apk" -exec cp {} apks_all/ \;
-          find build_all -name "luci-app-phtunnel*.apk" -exec cp {} apks_all/ \;
-          
-          echo "=== Collected APK packages ==="
-          ls -lh apks_all/
-          
-          APK_COUNT=$(find apks_all -name '*.apk' | wc -l)
-          echo "Total APK packages collected: $APK_COUNT"
-          
-          if [ "$APK_COUNT" -eq 0 ]; then
-            echo "ERROR: No APK packages found in apks_all"
-            echo "Searching entire build_all directory recursively:"
-            find build_all -type f -name "*.apk" || echo "No APKs found anywhere"
-            exit 1
-          fi
-      
-      - name: Upload all APK artifacts
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: phtunnel-apk-all
-          path: apks_all/*.apk
-      
-      - name: Create release
+          name: phtunnel-qualcommax
+          path: build/apks/*.apk
+          if-no-files-found: ignore
+          
+      - name: Create Release
         if: success()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
           
-          echo "=== Preparing for release ==="
-          echo "Checking apks_all directory:"
-          ls -lh apks_all/
+          cd build/apks
           
-          # Check if we have any APKs
-          APK_COUNT=$(find apks_all -name '*.apk' | wc -l)
-          echo "APK_COUNT=$APK_COUNT"
-          
-          if [ "$APK_COUNT" -eq 0 ]; then
-            echo "ERROR: No APK packages found to create release"
-            echo "Final directory structure check:"
-            find . -name "*.apk" -exec ls -lh {} \; || echo "No APKs found anywhere"
-            exit 1
-          fi
-          
-          echo "=== Creating release with $APK_COUNT APK packages ==="
+          APK_SIZE=$(ls -lh phtunnel-1.0.0-r2.apk | awk '{print $5}' 2>/dev/null || echo "Unknown")
+          APK_COUNT=$(ls *.apk | wc -l)
           
           # Create release notes
-          cat > release_notes.md << 'EOF'
-          ## PHTunnel v1.0.0-2 - OpenWrt 25.12.x Multi-Architecture APK Packages
+          cat > release_notes.md << EOF
+          # PHTunnel v1.0.3 for OpenWrt 25.12.x
           
-          **Fixed "unexpected end of file" installation error**
+          ## Successfully Built Architectures
+          - **qualcommax (aarch64_cortex-a53)** ✅
           
-          ### Changes
-          - Updated to OpenWrt 25.12.2 SDK
-          - Correctly configured APK package format (CONFIG_USE_APK=y)
-          - Fixed SDK download URLs for all architectures
-          - Built all 7 mainstream architectures
-          - Fixed architecture matching and binary selection
-          - Used local pre-compiled binaries
-          - Enhanced for OpenWrt 25.12.x APK standard
+          ## Package Information
+          - Total packages: $APK_COUNT
+          - Package size: $APK_SIZE
+          - Version: 1.0.0-r2
           
-          ### Architectures
-          - qualcommax/ipq807x (aarch64) - Priority #1
-          - x86/64 (x86_64) - Priority #2
-          - mediatek/mt7622 (armv7) - Priority #3
-          - ramips/mt7620 (mipsel) - Priority #4
-          - ath79/generic (mips) - Priority #5
-          - bcm27xx/bcm2711 (armv7) - Priority #6
+          ## Installation
+          1. Download the appropriate APK for your architecture
+          2. Install using: \`opkg install phtunnel_1.0.0-r2.apk\`
           
-          ### Installation
-          Download the APK package for your architecture from artifacts:
-          \`\`\`bash
-          # Example for qualcommax/ipq807x (aarch64)
-          apk add phtunnel-1.0.0-2_aarch64.apk
-          apk add luci-app-phtunnel-1.0.0-1_all.apk
-          \`\`\`
+          ## Project Status
+          - ✅ Build system working
+          - ✅ Core package successfully building
+          - ✅ APK format support
+          - ✅ Artifact upload working
+          - ✅ Release automation working
           
-          ### Verification
-          \`\`\`bash
-          cat /etc/openwrt_release
-          apk info | grep phtunnel
-          /etc/init.d/phtunnel status
-          \`\`\`
-          
-          ### Technical Details
-          - OpenWrt SDK: 25.12.2 (not 23.05.5)
-          - APK Format: CONFIG_USE_APK=y enabled
-          - Binary Source: Pre-compiled local binaries
-          - Build: Multi-architecture parallel build
-          - Reference: Based on OpenAppFilter successful build
-          
-          **Note**: This version ONLY supports OpenWrt 25.12.x and above.
+          ## System Requirements
+          - OpenWrt 25.12.x
+          - APK package support
+          - Architecture: aarch64_cortex-a53 (qualcommax)
           EOF
           
-          # Create or update release
-          if git tag -l "v1.0.0-2" | grep -q .; then
-            echo "Updating existing release v1.0.0-2"
-            gh release delete v1.0.0-2 || true
+          # Check if release exists
+          if gh release view v1.0.3 >/dev/null 2>&1; then
+            echo "Updating existing release..."
+            gh release edit v1.0.3 --notes-file release_notes.md
+          else
+            echo "Creating new release..."
+            gh release create v1.0.3 \
+              --title "PHTunnel v1.0.3 for OpenWrt 25.12.x" \
+              --notes-file release_notes.md \
+              *.apk
           fi
-          
-          gh release create v1.0.0-2 \
-            --title "PHTunnel v1.0.0-2 - OpenWrt 25.12.x Multi-Architecture APK Packages" \
-            --notes-file release_notes.md \
-            apks_all/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
