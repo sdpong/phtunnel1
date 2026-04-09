@@ -43,10 +43,15 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
-          # Copy package files
-          echo "Copying package files..."
-          mkdir -p package/phtunnel
-          cp -r "${GITHUB_WORKSPACE}/phtunnel"/* package/phtunnel/
+             # Copy package directory structure
+            echo "Copying package files..."
+            mkdir -p package/phtunnel
+            cp -r "${GITHUB_WORKSPACE}/phtunnel"/* package/phtunnel/
+            
+            # Set environment variables
+            export ARCH="$binary_dir"
+            export BINARY_ARCH="$binary_dir"
+            export CONFIG_USE_APK=y
           
           # Set environment variables
           export ARCH="aarch64"
