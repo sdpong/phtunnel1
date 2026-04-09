@@ -63,18 +63,16 @@ jobs:
           echo "Building phtunnel package..."
           make package/phtunnel/compile V=s
           
-          # Collect APKs
-          echo "=== Checking for APK packages ==="
-          find bin -name "phtunnel*.apk" -exec ls -lh {} \;
-          
-          mkdir -p apks
-          find bin -name "phtunnel*.apk" -exec cp {} apks/ \;
-          
-          echo "=== APK packages collected ==="
-          ls -lh apks/
-          
-          APK_COUNT=$(find apks -name '*.apk' | wc -l)
-          echo "Total APK packages: $APK_COUNT"
+           # Collect APKs
+           echo "=== Collecting APK packages ==="
+           mkdir -p apks_all
+           find bin -name "phtunnel*.apk" -exec cp {} apks_all/ \;
+           
+           echo "=== APK packages collected ==="
+           ls -lh apks_all/
+           
+           APK_COUNT=$(find apks_all -name '*.apk' 2>/dev/null | wc -l)
+           echo "Total APK packages: $APK_COUNT"
       
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
