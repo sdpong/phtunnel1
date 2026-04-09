@@ -36,7 +36,7 @@ define Build/Prepare
 		chmod +x "$(PKG_BUILD_DIR)/phtunnel"; \
 	else \
 		echo "Error: phtunnel binary not found: $(BINARY_ARCH)"; \
-			ls -la ./binaries/"; \
+		ls -la ./binaries/; \
 		exit 1; \
 	fi
 endef
