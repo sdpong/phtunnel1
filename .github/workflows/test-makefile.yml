@@ -1,0 +1,101 @@
+name: Test Makefile
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target architecture'
+        required: true
+        type: choice
+        default: 'qualcommax'
+        options:
+          - 'qualcommax'
+          - 'x86_64'
+          - 'mediatek'
+          - 'ramips'
+          - 'ath79'
+          - 'bcm27xx'
+
+jobs:
+  test-makefile:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Test Makefile syntax
+        run: |
+          echo "=== Testing Makefile syntax ==="
+          echo "Makefile content:"
+          cat phtunnel/Makefile
+          echo ""
+          echo "Checking for tabs vs spaces:"
+          cat -A phtunnel/Makefile | head -30
+      
+      - name: Simulate build environment
+        run: |
+          echo "=== Simulating build environment ==="
+          
+          # Set architecture
+          TARGET="${{ github.event.inputs.target }}"
+          case "$TARGET" in
+            qualcommax)
+              export ARCH="aarch64"
+              export BINARY_ARCH="aarch64"
+              ;;
+            x86_64)
+              export ARCH="x86_64"  
+              export BINARY_ARCH="x86_64"
+              ;;
+            mediatek)
+              export ARCH="armv7"
+              export BINARY_ARCH="armv7"
+              ;;
+            ramips)
+              export ARCH="mipsel"
+              export BINARY_ARCH="mipsel"
+              ;;
+            ath79)
+              export ARCH="mips"
+              export BINARY_ARCH="mips"
+              ;;
+            bcm27xx)
+              export ARCH="armv7"
+              export BINARY_ARCH="armv7"
+              ;;
+          esac
+          
+          echo "Environment variables:"
+          echo "ARCH=$ARCH"
+          echo "BINARY_ARCH=$BINARY_ARCH"
+          echo ""
+          
+          # Test Makefile parsing
+          echo "Testing Makefile parsing..."
+          cd phtunnel
+          
+          # Test if binary exists
+          BINARY_FILE="binaries/${BINARY_ARCH}/phtunnel"
+          echo "Looking for binary: $BINARY_FILE"
+          ls -la "$BINARY_FILE" || echo "Binary not found!"
+          
+          # Test Makefile commands
+          echo ""
+          echo "Testing Makefile Build/Prepare..."
+          mkdir -p test_build_dir
+          export PKG_BUILD_DIR="test_build_dir"
+          export CURDIR="$(pwd)"
+          
+          # Execute Build/Prepare commands manually
+          echo "Executing Build/Prepare commands..."
+          BINARY_TEST="${CURDIR}/binaries/${BINARY_ARCH}/phtunnel"
+          if [ -f "$BINARY_TEST" ]; then
+            echo "SUCCESS: Found binary"
+            cp "$BINARY_TEST" "$PKG_BUILD_DIR/phtunnel"
+            chmod +x "$PKG_BUILD_DIR/phtunnel"
+            ls -la "$PKG_BUILD_DIR/phtunnel"
+          else
+            echo "ERROR: Binary not found"
+            ls -la "${CURDIR}/binaries/"
+          fi
