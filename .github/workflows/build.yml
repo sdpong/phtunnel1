@@ -43,6 +43,10 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
+           # Set build directory
+             export BUILD_DIR="build"
+             echo "Working directory: $BUILD_DIR"
+             
              # Copy package directory structure
             echo "Copying package files..."
             mkdir -p package/phtunnel
@@ -73,7 +77,8 @@ jobs:
             find bin -name "phtunnel*.apk" -exec ls -lh {} \;
             
             # Check if any phtunnel APKs were found
-            if ! find bin -name "phtunnel*.apk" | head -1; then
+            APK_FOUND=$(find bin -name "phtunnel*.apk" | wc -l)
+            if [ "$APK_FOUND" -eq 0 ]; then
               echo "WARNING: No phtunnel APKs found"
             else
               # Create APKs directory structure
