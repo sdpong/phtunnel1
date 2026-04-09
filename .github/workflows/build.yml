@@ -200,28 +200,48 @@ jobs:
             echo "Current directory: $(pwd)"
             echo "Package directory contents:"
             ls -la package/phtunnel/
+            echo ""
+            echo "Checking for binary files before build:"
+            ls -la package/phtunnel/binaries/ || echo "No binaries directory"
+            echo ""
             
-            if ! make package/phtunnel/compile V=s; then
-              echo "WARNING: phtunnel build may have had issues, checking for output..."
-            fi
+            # Capture actual build output and errors
+            echo "=== Starting phtunnel compilation ==="
+            make package/phtunnel/compile V=s 2>&1 | tee phtunnel_build.log || {
+              echo "=== PHTUNNEL BUILD FAILED ==="
+              echo "Build output:"
+              cat phtunnel_build.log
+              exit 1
+            }
             
             # Build luci-app-phtunnel
             echo "Building luci-app-phtunnel package..."
-            export CONFIG_USE_APK=y
-            if ! make package/luci-app-phtunnel/compile V=s; then
-              echo "WARNING: luci-app-phtunnel build may have had issues, checking for output..."
-            fi
+            echo "=== Starting luci-app-phtunnel compilation ==="
+            make package/luci-app-phtunnel/compile V=s 2>&1 | tee luci_build.log || {
+              echo "=== LUCI BUILD FAILED ==="
+              echo "Build output:"
+              cat luci_build.log
+              exit 1
+            }
             
-            # Immediate APK check after build
-            echo "=== Immediate APK check after build ==="
+            # Comprehensive APK check after build
+            echo "=== Comprehensive APK check after build ==="
+            echo ""
+            echo "Checking entire bin directory structure:"
+            find bin -type f | head -20
+            echo ""
             echo "Checking for phtunnel APKs:"
-            find bin/packages -name "phtunnel*.apk" -exec ls -lh {} \; || echo "No phtunnel APKs found"
+            find bin -name "phtunnel*.apk" -exec ls -lh {} \; || echo "No phtunnel APKs found"
             echo ""
             echo "Checking for luci-app-phtunnel APKs:"
-            find bin/packages -name "luci-app-phtunnel*.apk" -exec ls -lh {} \; || echo "No luci-app-phtunnel APKs found"
+            find bin -name "luci-app-phtunnel*.apk" -exec ls -lh {} \; || echo "No luci-app-phtunnel APKs found"
             echo ""
             echo "All .apk files in bin directory:"
-            find bin -name "*.apk" | head -10 || echo "No APK files found"
+            find bin -name "*.apk" -exec ls -lh {} \; || echo "No APK files found"
+            echo ""
+            echo "Checking build logs:"
+            cat phtunnel_build.log | tail -50 || echo "No phtunnel build log"
+            cat luci_build.log | tail -50 || echo "No luci build log"
             echo ""
             
             # Check if build succeeded
