@@ -1,0 +1,129 @@
+name: Build PHTunnel with Real SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target architecture'
+        required: true
+        type: choice
+        default: 'qualcommax'
+        options:
+          - 'qualcommax'
+          - 'x86_64'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup build environment
+        run: |
+          TARGET="${{ github.event.inputs.target }}"
+          case "$TARGET" in
+            qualcommax)
+              export ARCH="aarch64"
+              export BINARY_ARCH="aarch64"
+              SDK_TARGET="qualcommax"
+              SDK_ARCH="ipq807x"
+              ;;
+            x86_64)
+              export ARCH="x86_64"
+              export BINARY_ARCH="x86_64"
+              SDK_TARGET="x86/64"
+              SDK_ARCH="x86_64"
+              ;;
+          esac
+          
+          echo "Building for: $TARGET"
+          echo "ARCH=$ARCH, BINARY_ARCH=$BINARY_ARCH"
+          echo "SDK: $SDK_TARGET/$SDK_ARCH"
+          
+      - name: Download and extract SDK
+        run: |
+          TARGET="${{ github.event.inputs.target }}"
+          case "$TARGET" in
+            qualcommax)
+              SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/qualcommax/ipq807x/openwrt-sdk-25.12.2-qualcommax-ipq807x_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+              ;;
+            x86_64)
+              SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/x86/64/openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+              ;;
+          esac
+          
+          echo "Downloading SDK: $SDK_URL"
+          curl -fL "$SDK_URL" -o sdk.tar.zst
+          
+          if [ ! -s "sdk.tar.zst" ]; then
+            echo "ERROR: SDK download failed"
+            exit 1
+          fi
+          
+          echo "Extracting SDK..."
+          zstd -d sdk.tar.zst -o sdk.tar
+          tar -xf sdk.tar
+          
+          SDK_DIR=$(find . -maxdepth 1 -type d -name "openwrt-sdk*" | head -1)
+          mv "$SDK_DIR" openwrt-sdk
+          echo "SDK extracted to openwrt-sdk"
+      
+      - name: Setup SDK and build package
+        run: |
+          cd openwrt-sdk
+          
+          # Enable APK format
+          echo "CONFIG_USE_APK=y" >> .config
+          
+          # Update feeds
+          echo "Updating feeds..."
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          
+          # Copy package files
+          echo "Copying package files..."
+          mkdir -p package/phtunnel
+          cp -r "$GITHUB_WORKSPACE/phtunnel"/* package/phtunnel/
+          
+          # Set environment variables
+          TARGET="${{ github.event.inputs.target }}"
+          case "$TARGET" in
+            qualcommax)
+              export ARCH="aarch64"
+              export BINARY_ARCH="aarch64"
+              ;;
+            x86_64)
+              export ARCH="x86_64"
+              export BINARY_ARCH="x86_64"
+              ;;
+          esac
+          
+          echo "Building with: ARCH=$ARCH, BINARY_ARCH=$BINARY_ARCH"
+          
+          # Configure and build
+          echo "Configuring build..."
+          make defconfig
+          echo "CONFIG_PACKAGE_phtunnel=y" >> .config
+          make oldconfig
+          
+          echo "Building phtunnel package..."
+          make package/phtunnel/compile V=s || echo "Build may have issues"
+          
+          # Check results
+          echo ""
+          echo "=== Build Results ==="
+          echo "Checking for APK packages:"
+          find bin -name "phtunnel*.apk" -exec ls -lh {} \; || echo "No phtunnel APKs found"
+          
+          echo ""
+          echo "All .apk files in bin directory:"
+          find bin -name "*.apk" | head -10 || echo "No APK files found"
+      
+      - name: Upload APK packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: phtunnel-apk
+          path: openwrt-sdk/bin/targets/**/*.apk
+          if-no-files-found: warn
