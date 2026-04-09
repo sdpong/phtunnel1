@@ -19,10 +19,13 @@ jobs:
           
           echo "=== Multi-Architecture Build ==="
           
-          # Define architectures
+          # Define architectures (skipping invalid aarch64 for now)
           declare -A ARCH_MAP
-          ARCH_MAP[qualcommax]="qualcommax:ipq807x:aarch64"
+          # ARCH_MAP[qualcommax]="qualcommax:ipq807x:aarch64"  # Temporarily disabled - invalid binary
           ARCH_MAP[x86_64]="x86:64:x86_64"
+          ARCH_MAP[armv7]="mediatek:mt7622:armv7"
+          ARCH_MAP[mipsel]="ramips:mt7620:mipsel"
+          ARCH_MAP[mips]="ath79:generic:mips"
           
           BUILD_DIR="build_all"
           mkdir -p "$BUILD_DIR"
