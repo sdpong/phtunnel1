@@ -82,8 +82,5 @@ endef
   if [ -d $(PKG_BUILD_DIR)/po ]; then \
     $(foreach lang,$(filter-out templates,$(notdir $(wildcard $(PKG_BUILD_DIR)/po/*))), \
       $(INSTALL_DATA) $(PKG_BUILD_DIR)/po/$(lang)/$(PKG_NAME).po $(1)/usr/share/luci/i18n/$(PKG_NAME).$(lang).po; ) \
-    fi \
-  fi
-endef
- 
-$(eval $(call BuildPackage,$(PKG_NAME)))
+  fi \
+  endef
