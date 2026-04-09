@@ -30,12 +30,21 @@ endef
 
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
-	BINARY_FILE="$(CURDIR)/binaries/$(BINARY_ARCH)/phtunnel"
-	if [ -f "$(BINARY_FILE)" ]; then \
-		cp "$(BINARY_FILE)" "$(PKG_BUILD_DIR)/phtunnel"; \
-		chmod +x "$(PKG_BUILD_DIR)/phtunnel"; \
+	if [ -n "$(BINARY_ARCH)" ]; then \
+		BINARY_FILE="$(CURDIR)/binaries/$(BINARY_ARCH)/phtunnel"; \
+		if [ -f "$$BINARY_FILE" ]; then \
+			cp "$$BINARY_FILE" "$(PKG_BUILD_DIR)/phtunnel"; \
+			chmod +x "$(PKG_BUILD_DIR)/phtunnel"; \
+			echo "Successfully copied phtunnel binary for $(BINARY_ARCH)"; \
+		else \
+			echo "Error: phtunnel binary not found: $(BINARY_ARCH)"; \
+			echo "Looking for: $$BINARY_FILE"; \
+			ls -la "$(CURDIR)/binaries/"; \
+			exit 1; \
+		fi \
 	else \
-		echo "Error: phtunnel binary not found: $(BINARY_ARCH)"; \
+		echo "Error: BINARY_ARCH environment variable not set"; \
+		echo "Available binaries:"; \
 		ls -la "$(CURDIR)/binaries/"; \
 		exit 1; \
 	fi
