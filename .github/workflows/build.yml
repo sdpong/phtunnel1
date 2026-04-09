@@ -57,19 +57,21 @@ jobs:
           for arch_key in "${!ARCH_MAP[@]}"; do
             IFS=':' read -r target arch_name binary_dir <<< "${ARCH_MAP[$arch_key]}"
             
-            echo "Building $arch_key ($target/$arch_name, binary: $binary_dir)..."
-            
-            WORK_DIR="$BUILD_DIR/$arch_key"
-            mkdir -p "$WORK_DIR"
-            
-            # Check if binary exists
-            if [ ! -f "${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel" ]; then
-              echo "ERROR: Binary not found: ${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel"
-              echo "Skipping $arch_key..."
-              continue
-            fi
-            
-            echo "Binary found: ${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel"
+          echo "Building $arch_key ($target/$arch_name, binary: $binary_dir)..."
+          
+          WORK_DIR="$BUILD_DIR/$arch_key"
+          mkdir -p "$WORK_DIR"
+          
+          # Check if binary exists
+          if [ ! -f "phtunnel/binaries/$binary_dir/phtunnel" ]; then
+            echo "ERROR: Binary not found: phtunnel/binaries/$binary_dir/phtunnel"
+            echo "Available binaries:"
+            ls -la phtunnel/binaries/
+            echo "Skipping $arch_key..."
+            continue
+          fi
+          
+          echo "Binary found: phtunnel/binaries/$binary_dir/phtunnel"
             
             # Determine SDK URL (special case for x86)
               if [ "$target" = "x86" ]; then
