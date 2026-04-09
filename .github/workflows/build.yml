@@ -111,6 +111,8 @@ jobs:
           TOTAL_APKS=$(find . -name "phtunnel*.apk" | wc -l)
           APK_SIZE=$(find . -name "phtunnel*.apk" -exec ls -lh {} \; | head -1 | awk '{print $5}')
           
+          echo "Total APKs: $TOTAL_APKS, Size: $APK_SIZE"
+          
           # Create release notes
           cat > release_notes.md << EOF
           # PHTunnel v1.0.3 for OpenWrt 25.12.x
@@ -145,14 +147,17 @@ jobs:
           - Complete luci-app-phtunnel web interface
           EOF
           
-          # Create or update release
-          if gh release view v1.0.3 >/dev/null 2>&1; then
+          # Create or update release with new version to avoid conflicts
+          RELEASE_TAG="v1.0.4"
+          echo "Using release tag: $RELEASE_TAG"
+          
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo "Updating existing release..."
-            gh release edit v1.0.3 --notes-file release_notes.md
+            gh release edit "$RELEASE_TAG" --notes-file release_notes.md
           else
             echo "Creating new release..."
-            gh release create v1.0.3 \
-              --title "PHTunnel v1.0.3 for OpenWrt 25.12.x" \
+            gh release create "$RELEASE_TAG" \
+              --title "PHTunnel v1.0.4 for OpenWrt 25.12.x" \
               --notes-file release_notes.md \
               $(find . -name "phtunnel*.apk" | tr '\n' ' ')
           fi
