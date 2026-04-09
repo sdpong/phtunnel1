@@ -26,7 +26,7 @@ define Package/$(PKG_NAME)
   ARCH:=all
 endef
 
- define Package/$(PKG_NAME)/description
+  define Package/phtunnel/description
    LuCI web interface for PHTunnel (HSK intranet penetration).
 
    This package provides a web interface for configuring and managing
