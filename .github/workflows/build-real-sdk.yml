@@ -104,49 +104,23 @@ jobs:
           
           # Configure and build
           echo "Configuring build..."
+          echo "Setting environment variables for phtunnel build..."
+          export BINARY_ARCH="$BINARY_ARCH"
+          echo "BINARY_ARCH set to: $BINARY_ARCH"
+          
           make defconfig
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
           make oldconfig
           
           echo "Building phtunnel package..."
+          echo "Environment check: BINARY_ARCH=$BINARY_ARCH"
           echo "Current directory: $(pwd)"
           echo "Package directory contents:"
           ls -la package/phtunnel/
           echo ""
-          echo "Checking BINARY_ARCH environment: $BINARY_ARCH"
-          echo "Checking binary file: package/phtunnel/binaries/${BINARY_ARCH}/phtunnel"
-          ls -la package/phtunnel/binaries/${BINARY_ARCH}/phtunnel || echo "Binary not found in package directory"
-          echo ""
+          echo "Checking for binaries in package/phtunnel/binaries/${BINARY_ARCH}/:"
+          ls -la package/phtunnel/binaries/${BINARY_ARCH}/phtunnel || echo "Binary not found"
           
-          # Try manual build first
-          echo "Attempting manual build..."
-          cd package/phtunnel
-          export PKG_BUILD_DIR="$(pwd)/build_dir"
-          mkdir -p "$PKG_BUILD_DIR"
-          export CURDIR="$(pwd)"
-          export BINARY_FILE="binaries/${BINARY_ARCH}/phtunnel"
-          
-          echo "Manual build environment:"
-          echo "CURDIR=$CURDIR"
-          echo "PKG_BUILD_DIR=$PKG_BUILD_DIR"
-          echo "BINARY_FILE=$BINARY_FILE"
-          echo "BINARY_ARCH=$BINARY_ARCH"
-          
-          if [ -f "$BINARY_FILE" ]; then
-            echo "Found binary, copying..."
-            cp "$BINARY_FILE" "$PKG_BUILD_DIR/phtunnel"
-            chmod +x "$PKG_BUILD_DIR/phtunnel"
-            echo "Binary copied successfully"
-            ls -lh "$PKG_BUILD_DIR/phtunnel"
-          else
-            echo "ERROR: Binary file not found!"
-            ls -la binaries/
-            exit 1
-          fi
-          
-          cd ../..
-          
-          echo "Now running make package/phtunnel/compile V=s"
           make package/phtunnel/compile V=s || echo "Build may have issues"
           
           # Check results
