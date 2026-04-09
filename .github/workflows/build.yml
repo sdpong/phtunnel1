@@ -162,21 +162,15 @@ jobs:
               exit 1
             fi
             
-            # Copy correct binary for this architecture
-            echo "Copying binary for $arch_key..."
+             # Copy binaries directory structure for Makefile compatibility
+            echo "Copying binaries directory for $arch_key..."
             mkdir -p package/phtunnel/binaries
-            cp "${GITHUB_WORKSPACE}/phtunnel/binaries/$binary_dir/phtunnel" package/phtunnel/binaries/phtunnel
-            chmod +x package/phtunnel/binaries/phtunnel
+            cp -r "${GITHUB_WORKSPACE}/phtunnel/binaries" package/phtunnel/
+            chmod +x package/phtunnel/binaries/*/phtunnel
             
-            # Verify binary was copied
-            if [ ! -f "package/phtunnel/binaries/phtunnel" ]; then
-              echo "ERROR: Failed to copy binary for $arch_key"
-              cd ../..
-              continue
-            fi
-            
-            echo "Binary copied successfully"
-            ls -lh package/phtunnel/binaries/phtunnel
+            # Verify binaries were copied
+            echo "Binaries copied successfully"
+            ls -lh package/phtunnel/binaries/*/phtunnel
             
             # Set environment variables for Makefile
             echo "Setting ARCH=$binary_dir, BINARY_ARCH=$binary_dir"
