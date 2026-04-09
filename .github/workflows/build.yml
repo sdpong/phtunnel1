@@ -69,72 +69,21 @@ jobs:
           make package/phtunnel/compile V=s
           
            # Collect APKs
-           echo "=== Collecting APK packages ==="
-           mkdir -p apks_all
-           find bin -name "phtunnel*.apk" -exec cp {} apks_all/ \;
-           
-           echo "=== APK packages collected ==="
-           ls -lh apks_all/
-           
-           APK_COUNT=$(find apks_all -name '*.apk' 2>/dev/null | wc -l)
-           echo "Total APK packages: $APK_COUNT"
-      
-      - name: Upload APK artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: phtunnel-qualcommax
-          path: build/apks/*.apk
-          if-no-files-found: ignore
-          
-      - name: Create Release
-        if: success()
-        run: |
-          set -e
-          
-          cd build/apks
-          
-          APK_SIZE=$(ls -lh phtunnel-1.0.0-r2.apk | awk '{print $5}' 2>/dev/null || echo "Unknown")
-          APK_COUNT=$(ls *.apk | wc -l)
-          
-          # Create release notes
-          cat > release_notes.md << EOF
-          # PHTunnel v1.0.3 for OpenWrt 25.12.x
-          
-          ## Successfully Built Architectures
-          - **qualcommax (aarch64_cortex-a53)** ✅
-          
-          ## Package Information
-          - Total packages: $APK_COUNT
-          - Package size: $APK_SIZE
-          - Version: 1.0.0-r2
-          
-          ## Installation
-          1. Download the appropriate APK for your architecture
-          2. Install using: \`opkg install phtunnel_1.0.0-r2.apk\`
-          
-          ## Project Status
-          - ✅ Build system working
-          - ✅ Core package successfully building
-          - ✅ APK format support
-          - ✅ Artifact upload working
-          - ✅ Release automation working
-          
-          ## System Requirements
-          - OpenWrt 25.12.x
-          - APK package support
-          - Architecture: aarch64_cortex-a53 (qualcommax)
-          EOF
-          
-          # Check if release exists
-          if gh release view v1.0.3 >/dev/null 2>&1; then
-            echo "Updating existing release..."
-            gh release edit v1.0.3 --notes-file release_notes.md
-          else
-            echo "Creating new release..."
-            gh release create v1.0.3 \
-              --title "PHTunnel v1.0.3 for OpenWrt 25.12.x" \
-              --notes-file release_notes.md \
-              *.apk
-          fi
+            echo "=== Checking for APK packages ==="
+            find bin -name "phtunnel*.apk" -exec ls -lh {} \;
+            
+            # Check if any phtunnel APKs were found
+            if ! find bin -name "phtunnel*.apk" | head -1; then
+              echo "WARNING: No phtunnel APKs found"
+            else
+              # Create APKs directory structure
+              mkdir -p "$BUILD_DIR/apks_${arch_key}"
+              echo "Copying all APKs..."
+              find bin -name "phtunnel*.apk" -exec cp {} "$BUILD_DIR/apks_${arch_key}/" \;
+              
+              echo "=== APK packages collected ==="
+              ls -lh "$BUILD_DIR/apks_${arch_key}/"
+              echo "Total phtunnel APKs: $(find "$BUILD_DIR/apks_${arch_key}" -name "phtunnel*.apk" | wc -l)"
+            fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
