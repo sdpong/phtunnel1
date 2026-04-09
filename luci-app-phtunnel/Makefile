@@ -13,8 +13,8 @@ LUCI_PKGARCH:=all
 # 使用标准 luci.mk 和 package.mk
 include $(INCLUDE_DIR)/package.mk
 include $(TOPDIR)/feeds/luci/luci.mk
-
-define Package/$(PKG_NAME)
+ 
+define Package/luci-app-phtunnel
   SECTION:=luci
   CATEGORY:=LuCI
   SUBMENU:=3. Applications
