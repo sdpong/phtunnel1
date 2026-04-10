@@ -98,17 +98,19 @@ jobs:
           
           # Build packages
           echo "Building packages..."
-          if make package/phtunnel/compile V=s; then
+          if make package/phtunnel/compile V=s 2>&1 | tee build.log; then
             echo "✅ phtunnel build succeeded"
           else
             echo "❌ phtunnel build failed"
+            cat build.log | tail -50
             exit 1
           fi
           
-          if make package/luci-app-phtunnel/compile V=s; then
+          if make package/luci-app-phtunnel/compile V=s 2>&1 | tee build_luci.log; then
             echo "✅ luci-app-phtunnel build succeeded"
           else
             echo "❌ luci-app-phtunnel build failed"
+            cat build_luci.log | tail -50
             exit 1
           fi
           
