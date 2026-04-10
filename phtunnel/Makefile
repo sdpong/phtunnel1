@@ -2,10 +2,10 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=phtunnel
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 
 PKG_TITLE:=PHTunnel - HSK Intranet Penetration Tool
-PKG_DESCRIPTION:=HSK intranet penetration tool for OpenWrt
+PKG_DESCRIPTION:=HSK intranet penetration tool for OpenWrt routers, enabling secure remote access without port forwarding
 PKG_SECTION:=net
 PKG_CATEGORY:=Network
 PKG_URL:=https://github.com/oray/phtunnel
@@ -62,6 +62,10 @@ define Build/Compile
 		exit 1; \
 	fi
 	chmod +x $(PKG_BUILD_DIR)/phtunnel
+endef
+
+define Build/InstallDev
+	$(INSTALL_DIR) $(1)/usr/sbin/
 endef
 
 $(eval $(call BuildPackage,phtunnel))
