@@ -14,10 +14,9 @@ define Package/phtunnel
   SECTION:=net
   CATEGORY:=Network
   SUBMENU:=Web Servers/Proxies
-  DEPENDS:=+libc +libpthread +librt
-  TITLE:=HSK Intranet penetration
-  URL:=https://hsk.oray.com/
-  MAINTAINER:=Oray <developer@oray.com>
+   TITLE:=HSK Intranet penetration
+   URL:=https://hsk.oray.com/
+   MAINTAINER:=Oray <developer@oray.com>
   LICENSE:=Proprietary
 endef
 
