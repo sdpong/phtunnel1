@@ -35,6 +35,21 @@ define Build/Prepare
 endef
 
 define Build/Compile
+	# Copy the appropriate binary based on architecture
+	if [ -n "$(BINARY_ARCH)" ]; then \
+		if [ -f ./binaries/phtunnel_$(BINARY_ARCH) ]; then \
+			cp ./binaries/phtunnel_$(BINARY_ARCH) $(PKG_BUILD_DIR)/phtunnel; \
+		elif [ -f ./binaries/phtunnel_$(ARCH) ]; then \
+			cp ./binaries/phtunnel_$(ARCH) $(PKG_BUILD_DIR)/phtunnel; \
+		else \
+			echo "ERROR: No binary found for architecture $(BINARY_ARCH) or $(ARCH)"; \
+			exit 1; \
+		fi \
+	else \
+		echo "ERROR: BINARY_ARCH environment variable not set"; \
+		exit 1; \
+	fi
+	chmod +x $(PKG_BUILD_DIR)/phtunnel
 endef
 
 define Package/phtunnel/install
