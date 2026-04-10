@@ -82,8 +82,10 @@ jobs:
           # Build luci-app-phtunnel  
           if make package/luci-app-phtunnel/compile V=s; then
             echo "✅ luci-app-phtunnel build succeeded"
+            LUCI_BUILD_SUCCESS=true
           else
-            echo "⚠️ luci-app-phtunnel build failed (expected for some architectures)"
+            echo "⚠️ luci-app-phtunnel build failed (APK will be included from system dependencies)"
+            LUCI_BUILD_SUCCESS=false
           fi
           
           # Collect APKs
