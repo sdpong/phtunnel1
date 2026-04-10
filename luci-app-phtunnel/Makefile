@@ -70,24 +70,3 @@ define Package/luci-app-phtunnel/install
  endef
 
 $(eval $(call BuildPackage,luci-app-phtunnel))
-   fi
- endef
- 
- define Build/Compile
-   # LuCI应用无需编译，文件已经准备好
-   true
- endef
- 
-define Package/luci-app-phtunnel/install
- $(INSTALL_DIR) $(1)/usr/share/lua/luci/controller
- $(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller/oray
- $(INSTALL_DIR) $(1)/usr/lib/lua/luci/model/cbi
- $(INSTALL_DIR) $(1)/usr/lib/lua/luci/model/cbi/oray
- $(INSTALL_DIR) $(1)/usr/share/lua/luci/view
- $(INSTALL_DIR) $(1)/usr/share/lua/luci/view/oray
- $(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
- $(INSTALL_DIR) $(1)/usr/share/luci/menu.d
- $(INSTALL_DIR) $(1)/usr/share/luci/i18n
-endef
-
-$(eval $(call BuildPackage,luci-app-phtunnel))
