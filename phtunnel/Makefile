@@ -37,12 +37,12 @@ endef
 define Build/Compile
 	# Copy the appropriate binary based on architecture
 	if [ -n "$(BINARY_ARCH)" ]; then \
-		if [ -f ../phtunnel-binaries/$(BINARY_ARCH)/phtunnel ]; then \
-			cp ../phtunnel-binaries/$(BINARY_ARCH)/phtunnel $(PKG_BUILD_DIR)/phtunnel; \
+		if [ -f ./binaries/$(BINARY_ARCH)/phtunnel ]; then \
+			cp ./binaries/$(BINARY_ARCH)/phtunnel $(PKG_BUILD_DIR)/phtunnel; \
 		else \
 			echo "ERROR: No binary found for architecture $(BINARY_ARCH)"; \
 			echo "Available architectures:"; \
-			ls -la ../phtunnel-binaries/; \
+			ls -la ./binaries/; \
 			exit 1; \
 		fi \
 	else \

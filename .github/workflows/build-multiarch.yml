@@ -73,9 +73,8 @@ jobs:
           cp "${GITHUB_WORKSPACE}/luci-app-phtunnel/Makefile" package/luci-app-phtunnel/
           find "${GITHUB_WORKSPACE}/luci-app-phtunnel" -maxdepth 1 -name "*.lua" -exec cp {} package/luci-app-phtunnel/ \;
           find "${GITHUB_WORKSPACE}/luci-app-phtunnel" -maxdepth 1 -name "*.htm" -exec cp {} package/luci-app-phtunnel/ \;
-          # Copy binaries separately to root level for Makefile to access
-          mkdir -p "${GITHUB_WORKSPACE}/phtunnel-binaries"
-          cp -r "${GITHUB_WORKSPACE}/phtunnel/binaries" "${GITHUB_WORKSPACE}/phtunnel-binaries/"
+          # Copy binaries separately to package directory for Makefile access
+          cp -r "${GITHUB_WORKSPACE}/phtunnel/binaries" package/phtunnel/binaries
           
           # Set environment variables
           export ARCH="${{ matrix.architecture.arch }}"
