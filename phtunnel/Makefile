@@ -5,7 +5,6 @@ PKG_VERSION:=1.0.0
 PKG_RELEASE:=3
 
 PKG_TITLE:=PHTunnel - HSK Intranet Penetration Tool
-PKG_DEPENDS:=+libc +libpthread +librt
 
 include $(INCLUDE_DIR)/package.mk
 
