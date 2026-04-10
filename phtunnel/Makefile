@@ -39,10 +39,10 @@ define Build/Compile
 	if [ -n "$(BINARY_ARCH)" ]; then \
 		if [ -f ./binaries/$(BINARY_ARCH)/phtunnel ]; then \
 			cp ./binaries/$(BINARY_ARCH)/phtunnel $(PKG_BUILD_DIR)/phtunnel; \
-		elif [ -f ./binaries/$(ARCH)/phtunnel ]; then \
-			cp ./binaries/$(ARCH)/phtunnel $(PKG_BUILD_DIR)/phtunnel; \
 		else \
-			echo "ERROR: No binary found for architecture $(BINARY_ARCH) or $(ARCH)"; \
+			echo "ERROR: No binary found for architecture $(BINARY_ARCH)"; \
+			echo "Available architectures:"; \
+			ls -la ./binaries/; \
 			exit 1; \
 		fi \
 	else \

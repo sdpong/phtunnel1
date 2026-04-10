@@ -75,8 +75,8 @@ jobs:
           export CONFIG_USE_APK=y
           
           # Check if binary exists for this architecture
-          if [ ! -f "${GITHUB_WORKSPACE}/phtunnel/binaries/${ARCH}/phtunnel" ]; then
-            echo "❌ Binary file not found for architecture $ARCH"
+          if [ ! -f "${GITHUB_WORKSPACE}/phtunnel/binaries/${BINARY_ARCH}/phtunnel" ]; then
+            echo "❌ Binary file not found for architecture $BINARY_ARCH"
             echo "Available architectures in binaries directory:"
             ls -la "${GITHUB_WORKSPACE}/phtunnel/binaries/"
             exit 1
