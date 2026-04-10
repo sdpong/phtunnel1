@@ -73,10 +73,40 @@ jobs:
           # Build phtunnel (use existing working Makefile)
           if make package/phtunnel/compile V=s; then
             echo "✅ phtunnel build succeeded"
+            PHTUNEL_BUILD_SUCCESS=true
           else
             echo "❌ phtunnel build failed"
+            PHTUNEL_BUILD_SUCCESS=false
+          fi
+          
+          # Build luci-app-phtunnel  
+          if make package/luci-app-phtunnel/compile V=s; then
+            echo "✅ luci-app-phtunnel build succeeded"
+          else
+            echo "⚠️ luci-app-phtunnel build failed (expected for some architectures)"
+          fi
+          
+          # Collect APKs
+          echo "=== Checking for all package files ==="
+          find bin -name "*.apk" -exec ls -lh {} \;
+          
+          echo "=== Collecting all packages ==="
+          mkdir -p "${GITHUB_WORKSPACE}/build/apks"
+          find bin -name "*.apk" -exec cp {} "${GITHUB_WORKSPACE}/build/apks/" \;
+          
+          echo "=== APK packages collected ==="
+          ls -lh "${GITHUB_WORKSPACE}/build/apks/"
+          
+          APK_COUNT=$(find "${GITHUB_WORKSPACE}/build/apks" -name '*.apk' 2>/dev/null | wc -l)
+          echo "Total APK packages: $APK_COUNT"
+          
+          # Only fail if phtunnel core build failed
+          if [ "$PHTUNEL_BUILD_SUCCESS" != "true" ]; then
+            echo "ERROR: phtunnel core build failed"
             exit 1
           fi
+          
+          echo "✅ Build completed successfully"
           
           # Build luci-app-phtunnel  
           if make package/luci-app-phtunnel/compile V=s; then
