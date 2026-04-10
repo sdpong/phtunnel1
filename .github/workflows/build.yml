@@ -91,12 +91,12 @@ jobs:
           fi
           
           # Collect APKs
-          echo "=== Checking for APK packages ==="
-          find bin -name "*phtunnel*.apk" -exec ls -lh {} \;
+          echo "=== Checking for all package files ==="
+          find bin -name "*.apk" -exec ls -lh {} \;
           
-          # Create APK directory at workspace root level
+          echo "=== Collecting all packages ==="
           mkdir -p "${GITHUB_WORKSPACE}/build/apks"
-          find bin -name "*phtunnel*.apk" -exec cp {} "${GITHUB_WORKSPACE}/build/apks/" \;
+          find bin -name "*.apk" -exec cp {} "${GITHUB_WORKSPACE}/build/apks/" \;
           
           echo "=== APK packages collected ==="
           ls -lh "${GITHUB_WORKSPACE}/build/apks/"
