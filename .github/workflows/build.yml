@@ -188,9 +188,10 @@ jobs:
         run: |
           set -e
           
-          cd build/apks
-          
-          APK_SIZE=$(ls -lh phtunnel*.apk | awk '{print $5}')
+           cd build/apks
+           
+           APK_SIZE=$(ls -lh *.apk | awk '{print $5}')
+           APK_COUNT=$(ls -1 *.apk 2>/dev/null | wc -l)
           
           # Create release notes
           cat > release_notes.md << EOF
@@ -199,16 +200,13 @@ jobs:
           ## Successfully Built Architecture
           - **qualcommax (aarch64_cortex-a53)** ✅
           
-          ## Package Information
-          - **Core Package**: phtunnel_1.0.0-r2.apk
-          - **Web Interface**: luci-app-phtunnel_1.0.0-r1.apk
-          - Total packages: $APK_COUNT
-          
-          ## Installation
-          1. Download phtunnel_1.0.0-r2.apk
-          2. Download luci-app-phtunnel_1.0.0-r1.apk
-          3. Install core: \`opkg install phtunnel_1.0.0-r2.apk\`
-          4. Install web interface: \`opkg install luci-app-phtunnel_1.0.0-r1.apk\`
+           ## Package Information
+           - Total packages: $APK_COUNT
+           - Package size: $APK_SIZE
+           - Version: 1.0.0-r2
+           
+           ## Installation
+           Install dependency packages: \`opkg install *.apk\`
           
           ## Project Status
           - ✅ Build system working
@@ -245,9 +243,9 @@ jobs:
           else
             echo "Creating new release..."
             gh release create "$RELEASE_TAG" \
-              --title "PHTunnel v1.0.1 for OpenWrt 25.12.x" \
+              --title "PHTunnel v1.0.0-r3 for OpenWrt 25.12.x" \
               --notes-file release_notes.md \
-              phtunnel*.apk
+              *.apk
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
