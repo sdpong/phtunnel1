@@ -13,11 +13,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Build qualcommax architecture only
+      - name: Build PHTunnel core
         run: |
           set -e
           
-          echo "=== Building qualcommax for OpenWrt 25.12.x ==="
+          echo "=== Building PHTunnel core package ==="
           
           # Download SDK
           SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/qualcommax/ipq807x/openwrt-sdk-25.12.2-qualcommax-ipq807x_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
@@ -31,9 +31,9 @@ jobs:
           echo "Extracting SDK..."
           zstd -d sdk.tar.zst -o sdk.tar
           tar -xf sdk.tar
-          rm -f sdk.tar sdk.tar.zst
+          rm -f sdk.tar.zst
           
-          # Find and setup SDK
+          # Setup SDK
           mv openwrt-sdk-* openwrt-sdk
           cd openwrt-sdk
           
@@ -59,8 +59,6 @@ jobs:
           echo "Configuring build..."
           make defconfig
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
-          echo "CONFIG_USE_APK=y" >> .config
-          echo "CONFIG_ALL_NONSHARED=y" >> .config
           make oldconfig
           
           # Build phtunnel
@@ -73,16 +71,16 @@ jobs:
           fi
           
           # Collect APKs
-          echo "=== Collecting APKs ==="
+          echo "=== Checking for APK packages ==="
           find bin -name "phtunnel*.apk" -exec ls -lh {} \;
           
-          mkdir -p apks
-          find bin -name "phtunnel*.apk" -exec cp {} apks/ \;
+          mkdir -p build/apks
+          find bin -name "phtunnel*.apk" -exec cp {} build/apks/ \;
           
           echo "=== APK packages collected ==="
-          ls -lh apks/
+          ls -lh build/apks/
           
-          APK_COUNT=$(find apks -name '*.apk' | wc -l)
+          APK_COUNT=$(find build/apks -name '*.apk' 2>/dev/null | wc -l)
           echo "Total APK packages: $APK_COUNT"
           
           if [ "$APK_COUNT" -eq 0 ]; then
@@ -109,7 +107,7 @@ jobs:
           
           # Create release notes
           cat > release_notes.md << EOF
-          # PHTunnel v1.1.1 for OpenWrt 25.12.x
+          # PHTunnel v1.0.0-r2 for OpenWrt 25.12.x
           
           ## Successfully Built Architecture
           - **qualcommax (aarch64_cortex-a53)** ✅
@@ -125,7 +123,8 @@ jobs:
           ## Project Status
           - ✅ Build system working
           - ✅ APK format support
-          - ✅ Release automation working
+          - ✅ Single architecture build successful
+          - ✅ Release creation working
           
           ## System Requirements
           - OpenWrt 25.12.x
@@ -139,7 +138,7 @@ jobs:
           EOF
           
           # Create release
-          RELEASE_TAG="v1.1.1"
+          RELEASE_TAG="v1.0.0-r2"
           
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo "Updating existing release..."
@@ -147,7 +146,7 @@ jobs:
           else
             echo "Creating new release..."
             gh release create "$RELEASE_TAG" \
-              --title "PHTunnel v1.1.1 for OpenWrt 25.12.x" \
+              --title "PHTunnel v1.0.1 for OpenWrt 25.12.x" \
               --notes-file release_notes.md \
               phtunnel*.apk
           fi
