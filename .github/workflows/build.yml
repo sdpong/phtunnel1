@@ -66,10 +66,20 @@ jobs:
           
           # Build packages
           echo "Building packages..."
+          
+          # Build phtunnel (use existing working Makefile)
           if make package/phtunnel/compile V=s; then
             echo "✅ phtunnel build succeeded"
           else
             echo "❌ phtunnel build failed"
+            exit 1
+          fi
+          
+          # Build luci-app-phtunnel  
+          if make package/luci-app-phtunnel/compile V=s; then
+            echo "✅ luci-app-phtunnel build succeeded"
+          else
+            echo "❌ luci-app-phtunnel build failed"
             exit 1
           fi
           
