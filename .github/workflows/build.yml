@@ -80,6 +80,35 @@ jobs:
             echo "✅ luci-app-phtunnel build succeeded"
           else
             echo "❌ luci-app-phtunnel build failed"
+            # Don't exit on luci-app-phtunnel failure as it might not generate APK
+          fi
+          
+          # Collect APKs
+          echo "=== Checking for APK packages ==="
+          find bin -name "*.apk" -exec ls -lh {} \;
+          
+          echo "=== Collecting all packages ==="
+          mkdir -p "${GITHUB_WORKSPACE}/build/apks"
+          find bin -name "*.apk" -exec cp {} "${GITHUB_WORKSPACE}/build/apks/" \;
+          
+          echo "=== APK packages collected ==="
+          ls -lh "${GITHUB_WORKSPACE}/build/apks/"
+          
+          APK_COUNT=$(find "${GITHUB_WORKSPACE}/build/apks" -name '*.apk' 2>/dev/null | wc -l)
+          echo "Total APK packages: $APK_COUNT"
+          
+          # Only fail if phtunnel failed and no APKs
+          PHTUNEL_APK=$(find "${GITHUB_WORKSPACE}/build/apks" -name 'phtunnel*.apk' 2>/dev/null | wc -l)
+          if [ "$APK_COUNT" -eq 0 ] || [ "$PHTUNEL_APK_COUNT" -eq 0 ]; then
+            echo "ERROR: No APK packages generated"
+            exit 1
+          fi
+          
+          # Build luci-app-phtunnel  
+          if make package/luci-app-phtunnel/compile V=s; then
+            echo "✅ luci-app-phtunnel build succeeded"
+          else
+            echo "❌ luci-app-phtunnel build failed"
             exit 1
           fi
           
