@@ -59,6 +59,8 @@ jobs:
           echo "Configuring build..."
           make defconfig
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
+          echo "CONFIG_USE_APK=y" >> .config
+          echo "CONFIG_ALL_NONSHARED=y" >> .config
           make oldconfig
           
           # Build phtunnel
