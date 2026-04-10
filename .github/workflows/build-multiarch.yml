@@ -66,8 +66,16 @@ jobs:
           echo "Copying package files..."
           mkdir -p package/phtunnel
           mkdir -p package/luci-app-phtunnel
-          cp -r "${GITHUB_WORKSPACE}/phtunnel"/* package/phtunnel/
-          cp -r "${GITHUB_WORKSPACE}/luci-app-phtunnel"/* package/luci-app-phtunnel/
+          # Copy only Makefile and source files, not binaries directory
+          cp "${GITHUB_WORKSPACE}/phtunnel/Makefile" package/phtunnel/
+          find "${GITHUB_WORKSPACE}/phtunnel" -maxdepth 1 -name "*.lua" -exec cp {} package/phtunnel/ \;
+          find "${GITHUB_WORKSPACE}/phtunnel" -maxdepth 1 -name "*.htm" -exec cp {} package/phtunnel/ \;
+          cp "${GITHUB_WORKSPACE}/luci-app-phtunnel/Makefile" package/luci-app-phtunnel/
+          find "${GITHUB_WORKSPACE}/luci-app-phtunnel" -maxdepth 1 -name "*.lua" -exec cp {} package/luci-app-phtunnel/ \;
+          find "${GITHUB_WORKSPACE}/luci-app-phtunnel" -maxdepth 1 -name "*.htm" -exec cp {} package/luci-app-phtunnel/ \;
+          # Copy binaries separately
+          mkdir -p package/phtunnel/binaries
+          cp -r "${GITHUB_WORKSPACE}/phtunnel/binaries" package/phtunnel/binaries
           
           # Set environment variables
           export ARCH="${{ matrix.architecture.arch }}"
