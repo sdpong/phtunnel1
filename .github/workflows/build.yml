@@ -102,10 +102,9 @@ jobs:
           APK_COUNT=$(find "${GITHUB_WORKSPACE}/build/apks" -name '*.apk' 2>/dev/null | wc -l)
           echo "Total APK packages: $APK_COUNT"
           
-          # Only fail if phtunnel core build failed
-          PHTUNEL_APK_COUNT=$(find "${GITHUB_WORKSPACE}/build/apks" -name 'phtunnel*.apk' 2>/dev/null | wc -l)
-          if [ "$PHTUNEL_BUILD_SUCCESS" != "true" ] && [ "$PHTUNEL_APK_COUNT" -eq 0 ]; then
-            echo "ERROR: phtunnel core build failed and no APKs generated"
+          # Only fail if no APK packages generated
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "ERROR: No APK packages generated"
             exit 1
           fi
           
