@@ -1,14 +1,9 @@
 
 include $(TOPDIR)/rules.mk
 
-# Package metadata
 PKG_NAME:=phtunnel
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=2
-PKG_HASH:=skip
-PKG_FLAGS:=nonshared
-PKG_MAINTAINER:=Oray <developer@oray.com>
-PKG_LICENSE:=Proprietary
+PKG_RELEASE:=3
 
 include $(INCLUDE_DIR)/package.mk
 
