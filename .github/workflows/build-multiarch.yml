@@ -8,7 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    continue-on-error: true
     strategy:
+      fail-fast: false
       matrix:
         architecture:
           - name: qualcommax
@@ -72,6 +74,14 @@ jobs:
           export BINARY_ARCH="${{ matrix.architecture.arch }}"
           export CONFIG_USE_APK=y
           
+          # Check if binary exists for this architecture
+          if [ ! -f "${GITHUB_WORKSPACE}/phtunnel/binaries/${ARCH}/phtunnel" ]; then
+            echo "❌ Binary file not found for architecture $ARCH"
+            echo "Available architectures in binaries directory:"
+            ls -la "${GITHUB_WORKSPACE}/phtunnel/binaries/"
+            exit 1
+          fi
+          
           # Configure build
           echo "Configuring build..."
           make defconfig
@@ -123,6 +133,7 @@ jobs:
 
   create-release:
     needs: build
+    if: always()
     runs-on: ubuntu-latest
     permissions:
       contents: write
