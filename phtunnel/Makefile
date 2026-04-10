@@ -48,14 +48,8 @@ endef
 define Package/phtunnel/postinst
 #!/bin/sh
 /etc/init.d/phtunnel enable
+/etc/init.d/phtunnel restart
 exit 0
 endef
 
-define Package/phtunnel/postinst
-#!/bin/sh
-/etc/init.d/phtunnel restart
-endef
-
 $(eval $(call BuildPackage,phtunnel))
-EOF
-'
