@@ -48,7 +48,9 @@ jobs:
           # Copy package files
           echo "Copying package files..."
           mkdir -p package/phtunnel
+          mkdir -p package/luci-app-phtunnel
           cp -r "${GITHUB_WORKSPACE}/phtunnel"/* package/phtunnel/
+          cp -r "${GITHUB_WORKSPACE}/luci-app-phtunnel"/* package/luci-app-phtunnel/
           
           # Set environment variables
           export ARCH="aarch64"
@@ -59,10 +61,11 @@ jobs:
           echo "Configuring build..."
           make defconfig
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
           make oldconfig
           
-          # Build phtunnel
-          echo "Building phtunnel package..."
+          # Build packages
+          echo "Building packages..."
           if make package/phtunnel/compile V=s; then
             echo "✅ phtunnel build succeeded"
           else
@@ -70,13 +73,20 @@ jobs:
             exit 1
           fi
           
+          if make package/luci-app-phtunnel/compile V=s; then
+            echo "✅ luci-app-phtunnel build succeeded"
+          else
+            echo "❌ luci-app-phtunnel build failed"
+            exit 1
+          fi
+          
           # Collect APKs
           echo "=== Checking for APK packages ==="
-          find bin -name "phtunnel*.apk" -exec ls -lh {} \;
+          find bin -name "*phtunnel*.apk" -exec ls -lh {} \;
           
           # Create APK directory at workspace root level
           mkdir -p "${GITHUB_WORKSPACE}/build/apks"
-          find bin -name "phtunnel*.apk" -exec cp {} "${GITHUB_WORKSPACE}/build/apks/" \;
+          find bin -name "*phtunnel*.apk" -exec cp {} "${GITHUB_WORKSPACE}/build/apks/" \;
           
           echo "=== APK packages collected ==="
           ls -lh "${GITHUB_WORKSPACE}/build/apks/"
@@ -108,38 +118,50 @@ jobs:
           
           # Create release notes
           cat > release_notes.md << EOF
-          # PHTunnel v1.0.0-r2 for OpenWrt 25.12.x
+          # PHTunnel v1.0.0-r3 for OpenWrt 25.12.x
           
           ## Successfully Built Architecture
           - **qualcommax (aarch64_cortex-a53)** ✅
           
           ## Package Information
-          - Package size: $APK_SIZE
-          - Version: 1.0.0-r2
+          - **Core Package**: phtunnel_1.0.0-r2.apk
+          - **Web Interface**: luci-app-phtunnel_1.0.0-r1.apk
+          - Total packages: $APK_COUNT
           
           ## Installation
           1. Download phtunnel_1.0.0-r2.apk
-          2. Install using: \`opkg install phtunnel_1.0.0-r2.apk\`
+          2. Download luci-app-phtunnel_1.0.0-r1.apk
+          3. Install core: \`opkg install phtunnel_1.0.0-r2.apk\`
+          4. Install web interface: \`opkg install luci-app-phtunnel_1.0.0-r1.apk\`
           
           ## Project Status
           - ✅ Build system working
           - ✅ APK format support
-          - ✅ Single architecture build successful
+          - ✅ Core package built
+          - ✅ LuCI web interface built
           - ✅ Release creation working
           
           ## System Requirements
           - OpenWrt 25.12.x
           - APK package support
           - Architecture: aarch64_cortex-a53 (qualcommax)
+          - LuCI web interface support
+          
+          ## Features
+          - HSK intranet penetration support
+          - Web-based configuration interface
+          - TCP/HTTP/HTTPS protocol support
+          - End-to-end TLS encryption
+          - Black/white list verification
           
           ## Current Status
-          - Working on: Single architecture testing
+          - ✅ Complete package ecosystem working
           - Next: Multi-architecture expansion
           - Goal: All major OpenWrt 25.12.x architectures
           EOF
           
           # Create release
-          RELEASE_TAG="v1.0.0-r2"
+          RELEASE_TAG="v1.0.0-r3"
           
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo "Updating existing release..."

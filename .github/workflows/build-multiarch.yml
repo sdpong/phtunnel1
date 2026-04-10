@@ -1,0 +1,218 @@
+name: Build PHTunnel Multi-Architecture
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        architecture:
+          - name: qualcommax
+            arch: aarch64
+            sdk_url: https://downloads.openwrt.org/releases/25.12.2/targets/qualcommax/ipq807x/openwrt-sdk-25.12.2-qualcommax-ipq807x_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+          - name: mediatek
+            arch: armv7
+            sdk_url: https://downloads.openwrt.org/releases/25.12.2/targets/mediatek/filogic/openwrt-sdk-25.12.2-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+          - name: x86-64
+            arch: x86_64
+            sdk_url: https://downloads.openwrt.org/releases/25.12.2/targets/x86/64/openwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+          - name: mipsel
+            arch: mipsel
+            sdk_url: https://downloads.openwrt.org/releases/25.12.2/targets/ramips/mt7621/openwrt-sdk-25.12.2-ramips-mt7621_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build PHTunnel ${{ matrix.architecture.name }}
+        run: |
+          set -e
+          
+          echo "=== Building PHTunnel for ${{ matrix.architecture.name }} ({{ matrix.architecture.arch }}) ==="
+          
+          # Download SDK
+          SDK_URL="${{ matrix.architecture.sdk_url }}"
+          
+          mkdir -p build
+          cd build
+          
+          echo "Downloading SDK..."
+          curl -fL "$SDK_URL" -o sdk.tar.zst
+          
+          echo "Extracting SDK..."
+          zstd -d sdk.tar.zst -o sdk.tar
+          tar -xf sdk.tar
+          rm -f sdk.tar.zst
+          
+          # Setup SDK
+          mv openwrt-sdk-* openwrt-sdk
+          cd openwrt-sdk
+          
+          # Enable APK format
+          echo "CONFIG_USE_APK=y" >> .config
+          
+          # Update feeds
+          echo "Updating feeds..."
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          
+          # Copy package files
+          echo "Copying package files..."
+          mkdir -p package/phtunnel
+          mkdir -p package/luci-app-phtunnel
+          cp -r "${GITHUB_WORKSPACE}/phtunnel"/* package/phtunnel/
+          cp -r "${GITHUB_WORKSPACE}/luci-app-phtunnel"/* package/luci-app-phtunnel/
+          
+          # Set environment variables
+          export ARCH="${{ matrix.architecture.arch }}"
+          export BINARY_ARCH="${{ matrix.architecture.arch }}"
+          export CONFIG_USE_APK=y
+          
+          # Configure build
+          echo "Configuring build..."
+          make defconfig
+          echo "CONFIG_PACKAGE_phtunnel=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
+          make oldconfig
+          
+          # Build packages
+          echo "Building packages..."
+          if make package/phtunnel/compile V=s; then
+            echo "✅ phtunnel build succeeded"
+          else
+            echo "❌ phtunnel build failed"
+            exit 1
+          fi
+          
+          if make package/luci-app-phtunnel/compile V=s; then
+            echo "✅ luci-app-phtunnel build succeeded"
+          else
+            echo "❌ luci-app-phtunnel build failed"
+            exit 1
+          fi
+          
+          # Collect APKs
+          echo "=== Collecting APK packages ==="
+          mkdir -p "${GITHUB_WORKSPACE}/build/apks"
+          
+          find bin -name "*phtunnel*.apk" -exec cp {} "${GITHUB_WORKSPACE}/build/apks/" \;
+          
+          echo "=== APK packages collected ==="
+          ls -lh "${GITHUB_WORKSPACE}/build/apks/"
+          
+          APK_COUNT=$(find "${GITHUB_WORKSPACE}/build/apks" -name '*.apk' 2>/dev/null | wc -l)
+          echo "Total APK packages: $APK_COUNT"
+          
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "ERROR: No APK packages generated"
+            exit 1
+          fi
+          
+          echo "✅ Build completed successfully for ${{ matrix.architecture.name }}"
+      
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: phtunnel-apk-${{ matrix.architecture.name }}
+          path: build/apks/*.apk
+          if-no-files-found: warn
+
+  create-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-apks
+      
+      - name: Create Release
+        run: |
+          set -e
+          
+          echo "=== Creating multi-architecture release ==="
+          
+          # Organize APKs
+          mkdir -p apks
+          find all-apks -name "*.apk" -exec cp {} apks/ \;
+          
+          ls -lh apks/
+          
+          APK_COUNT=$(find apks -name '*.apk' 2>/dev/null | wc -l)
+          echo "Total APK packages: $APK_COUNT"
+          
+          # Create release notes
+          cat > release_notes.md << 'EOF'
+          # PHTunnel v1.0.0-r3 for OpenWrt 25.12.x - Multi-Architecture
+          
+          ## 📦 Package Information
+          This release contains PHTunnel packages for multiple OpenWrt architectures.
+          
+          ## ✅ Successfully Built Architectures
+          - **qualcommax (aarch64_cortex-a53)** - For Qualcomm IPQ807x routers
+          - **mediatek (armv7)** - For MediaTek Filogic routers  
+          - **x86-64** - For x86-64 systems
+          - **mipsel (ramips mt7621)** - For MediaTek MT7621 routers
+          
+          ## 📦 Packages Included
+          For each architecture, the following packages are provided:
+          - **phtunnel_1.0.0-r2.apk** - Core PHTunnel application
+          - **luci-app-phtunnel_1.0.0-r1.apk** - Web configuration interface
+          
+          ## 🚀 Installation Instructions
+          1. Download the appropriate packages for your architecture
+          2. Install core package: `opkg install phtunnel_1.0.0-r2.apk`
+          3. Install web interface: `opkg install luci-app-phtunnel_1.0.0-r1.apk`
+          4. Access web interface: http://your-router-ip/cgi-bin/luci/admin/services/phtunnel
+          
+          ## ✅ Project Status
+          - ✅ Multi-architecture build system working
+          - ✅ APK format support for all architectures
+          - ✅ Core package and web interface built
+          - ✅ Automated release creation
+          
+          ## 💻 System Requirements
+          - OpenWrt 25.12.x or later
+          - APK package support (opkg with APK)
+          - Appropriate architecture for your device
+          - LuCI web interface support
+          
+          ## 🎯 Features
+          - HSK intranet penetration support
+          - Web-based configuration interface
+          - TCP/HTTP/HTTPS protocol support
+          - End-to-end TLS encryption
+          - Black/white list verification
+          - Multi-architecture support
+          
+          ## 📋 Current Status
+          - ✅ Complete package ecosystem working
+          - ✅ Multi-architecture support implemented
+          - ✅ All major OpenWrt platforms supported
+          
+          ---
+          
+          **Note**: Please install both packages for complete functionality.
+          EOF
+          
+          # Create release
+          RELEASE_TAG="v1.0.0-r3-multiarch"
+          
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Updating existing release..."
+            gh release edit "$RELEASE_TAG" --notes-file release_notes.md
+          else
+            echo "Creating new multi-architecture release..."
+            gh release create "$RELEASE_TAG" \
+              --title "PHTunnel v1.0.0-r3 for OpenWrt 25.12.x - Multi-Architecture" \
+              --notes-file release_notes.md \
+              apks/*.apk
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
