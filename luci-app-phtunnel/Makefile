@@ -4,12 +4,13 @@ PKG_NAME:=luci-app-phtunnel
 PKG_VERSION:=1.0.0
 PKG_RELEASE:=1
 
+PKG_LICENSE:=GPL-2.0-only
+PKG_MAINTAINER:=Oray <developer@oray.com>
+
 include $(INCLUDE_DIR)/package.mk
 
-define Package/luci-app-phtunnel/postinst
-#!/bin/sh
-	/etc/init.d/luci-app-phtunnel enable
-	exit 0
+define Package/luci-app-phtunnel/conffiles
+	$(INSTALL_DIR) $(1)/etc/config/phtunnel
 endef
 
 define Package/luci-app-phtunnel/install
@@ -17,15 +18,10 @@ define Package/luci-app-phtunnel/install
 	$(INSTALL_DIR) $(1)/usr/share/lua/luci/model/cbi/oray
 	$(INSTALL_DIR) $(1)/usr/share/lua/luci/view/oray
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d/
-endef
-
-define Package/luci-app-phtunnel/postinst
-#!/bin/sh
-	exit 0
+	$(INSTALL_DIR) $(1)/etc/config/phtunnel
 endef
 
 define Build/Compile
-	# LuCI applications don't need compilation, just file copying
 	true
 endef
 

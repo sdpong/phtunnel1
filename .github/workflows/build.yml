@@ -62,6 +62,9 @@ jobs:
           make defconfig
           echo "CONFIG_PACKAGE_phtunnel=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
+          echo "CONFIG_USE_APK=y" >> .config
+          echo "CONFIG_ALL_NONSHARED=y" >> .config
+          echo "CONFIG_APK=y" >> .config
           make oldconfig
           
           # Build packages
