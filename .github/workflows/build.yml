@@ -74,13 +74,14 @@ jobs:
           echo "=== Checking for APK packages ==="
           find bin -name "phtunnel*.apk" -exec ls -lh {} \;
           
-          mkdir -p build/apks
-          find bin -name "phtunnel*.apk" -exec cp {} build/apks/ \;
+          # Create APK directory at workspace root level
+          mkdir -p "${GITHUB_WORKSPACE}/build/apks"
+          find bin -name "phtunnel*.apk" -exec cp {} "${GITHUB_WORKSPACE}/build/apks/" \;
           
           echo "=== APK packages collected ==="
-          ls -lh build/apks/
+          ls -lh "${GITHUB_WORKSPACE}/build/apks/"
           
-          APK_COUNT=$(find build/apks -name '*.apk' 2>/dev/null | wc -l)
+          APK_COUNT=$(find "${GITHUB_WORKSPACE}/build/apks" -name '*.apk' 2>/dev/null | wc -l)
           echo "Total APK packages: $APK_COUNT"
           
           if [ "$APK_COUNT" -eq 0 ]; then
