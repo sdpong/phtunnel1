@@ -1,70 +1,10 @@
-
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=phtunnel
 PKG_VERSION:=1.0.0
 PKG_RELEASE:=3
 
-define Package/phtunnel/conffiles
-	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
-	$(INSTALL_DIR) $(1)/usr/sbin/
-endef
-
-define Package/phtunnel/install
-	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
-	$(INSTALL_DIR) $(1)/usr/sbin/
-	$(INSTALL_DIR) $(1)/usr/sbin/phtunnel
-	$(CP) $(PKG_BUILD_DIR)/phtunnel
-endef
-
-define Package/phtunnel/postinst
-#!/bin/sh
-	/etc/init.d/phtunnel enable
-	/etc/init.d/phtunnel restart
-	exit 0
-endef
-
-define Build/Compile
-	# Copy the appropriate binary based on architecture
-	if [ -n "$(BINARY_ARCH)" ]; then \
-		if [ -f ./binaries/$(BINARY_ARCH)/phtunnel ]; then \
-			cp ./binaries/$(BINARY_ARCH)/phtunnel $(PKG_BUILD_DIR)/phtunnel; \
-		else \
-			echo "ERROR: No binary found for architecture $(BINARY_ARCH)"; \
-			echo "Available architectures:"; \
-			ls -la ./binaries/; \
-			exit 1; \
-		fi \
-	else \
-		echo "ERROR: BINARY_ARCH environment variable not set"; \
-		exit 1; \
-	fi
-	chmod +x $(PKG_BUILD_DIR)/phtunnel
-endef
-
-$(eval $(call BuildPackage,phtunnel))
-
-define Package/phtunnel
-  SECTION:=net
-  CATEGORY:=Network
-  SUBMENU:=Web Servers/Proxies
-  DEPENDS:=+libc +libpthread +librt
-  TITLE:=HSK Intranet penetration
-  URL:=https://hsk.oray.com/
-  MAINTAINER:=Oray <developer@oray.com>
-  LICENSE:=Proprietary
-endef
-
-define Package/phtunnel/description
-    PHTunnel is core component of HSK intranet penetration, which can easily implement high-performance
-    reverse proxy applications, supports TCP, HTTP, HTTPS protocols, end-to-end TLS encrypted communication,
-    black and white list anti-black verification, etc. Through PHTunnel, external network devices can easily
-    penetrate various complex routes and firewalls to access devices on internal network.
-endef
+include $(INCLUDE_DIR)/package.mk
 
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
@@ -88,19 +28,13 @@ define Build/Compile
 	chmod +x $(PKG_BUILD_DIR)/phtunnel
 endef
 
-define Package/phtunnel/install
-	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
-	$(INSTALL_DIR) $(1)/usr/sbin/
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/phtunnel $(1)/usr/sbin/
+define Build/InstallDev
+	$(INSTALL_DIR) $(1)/usr/sbin
+	$(CP) $(PKG_BUILD_DIR)/phtunnel
 endef
 
-define Package/phtunnel/postinst
-#!/bin/sh
-/etc/init.d/phtunnel enable
-/etc/init.d/phtunnel restart
-exit 0
+define Build/Clean
+	rm -rf $(PKG_BUILD_DIR)
 endef
 
-$(eval $(call BuildPackage,phtunnel))
+$(eval $(call BuildPackage))
