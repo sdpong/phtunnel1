@@ -13,19 +13,14 @@ define Package/luci-app-phtunnel/postinst
 endef
 
 define Package/luci-app-phtunnel/install
-	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_DIR) $(1)/usr/sbin/
+	$(INSTALL_DIR) $(1)/usr/share/lua/luci/controller/oray
+	$(INSTALL_DIR) $(1)/usr/share/lua/luci/model/cbi/oray
+	$(INSTALL_DIR) $(1)/usr/share/lua/luci/view/oray
+	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d/
 endef
 
-define Package/luci-app-phtunnel/postprerm
+define Package/luci-app-phtunnel/postinst
 #!/bin/sh
-	/etc/init.d/luci-app-phtunnel disable
-	exit 0
-endef
-
-define Package/luci-app-phtunnel/prerm
-	#!/bin/sh
-	/etc/init.d/luci-app-phtunnel disable
 	exit 0
 endef
 
