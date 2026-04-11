@@ -1,0 +1,9 @@
+Package: phtunnel
+Version: 1.0.0-r5
+Description: HSK intranet penetration tool
+Architecture: aarch64_cortex-a53
+Section: net
+Maintainer: Oray <developer@oray.com>
+License: GPL-2.0-only
+Size: 650K
+DataHash: d4e7a1d8e6f387b6a9f3b8525613ac5b9c8e1a678ed9d1d
