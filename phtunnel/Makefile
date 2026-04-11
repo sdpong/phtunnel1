@@ -14,16 +14,16 @@ PKG_LICENSE:=GPL-2.0-only
 
 include $(INCLUDE_DIR)/package.mk
 
+define Package/phtunnel/conffiles
+	/etc/config/phtunnel
+endef
+
 define Package/phtunnel/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
 	$(INSTALL_DIR) $(1)/usr/sbin/
-	$(INSTALL_BIN) ./binaries/$(BINARY_ARCH)/phtunnel $(1)/usr/sbin/phtunnel
-endef
-
-define Package/phtunnel/conffiles
-	/etc/config/phtunnel
+	$(INSTALL_BIN) ./binaries/aarch64/phtunnel $(1)/usr/sbin/
 endef
 
 define Package/phtunnel/description
@@ -49,9 +49,14 @@ define Build/Prepare
 endef
 
 define Build/Compile
-	# Use direct binary copy without complex Makefile compilation
-	cp ./binaries/$(BINARY_ARCH)/phtunnel $(PKG_BUILD_DIR)/phtunnel
-	chmod +x $(PKG_BUILD_DIR)/phtunnel
+	# Direct binary copy without complex dependencies
+	if [ -f "./binaries/aarch64/phtunnel" ]; then \
+		cp ./binaries/aarch64/phtunnel $(PKG_BUILD_DIR)/phtunnel; \
+		chmod +x $(PKG_BUILD_DIR)/phtunnel; \
+	else \
+		echo "ERROR: phtunnel binary not found for aarch64"; \
+		exit 1; \
+	fi
 endef
 
 $(eval $(call BuildPackage,phtunnel))
