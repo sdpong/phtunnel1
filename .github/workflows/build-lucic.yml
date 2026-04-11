@@ -1,0 +1,92 @@
+name: Build luci-app-phtunnel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build luci-app-phtunnel
+        run: |
+          set -x
+          
+          curl -fL "https://downloads.openwrt.org/releases/25.12.2/targets/qualcommax/ipq807x/openwrt-sdk-25.12.2-qualcommax-ipq807x_gcc-14.3.0_musl.Linux-x86_64.tar.zst" -o sdk.tar.zst
+          tar -xf sdk.tar.zst
+          rm -f sdk.tar.zst
+          mv openwrt-sdk-* openwrt-sdk
+          cd openwrt-sdk
+          
+          mkdir -p package/luci-app-phtunnel
+          cp -r luci-app-phtunnel/* package/luci-app-phtunnel/
+          
+          echo "CONFIG_USE_APK=y" >> .config
+          make defconfig
+          echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
+          make oldconfig
+          
+          echo "Building luci-app-phtunnel..."
+          if make package/luci-app-phtunnel/compile V=s 2>&1 | tee luci-build.log || true; then
+            echo "Build succeeded"
+          else
+            echo "Build failed"
+            tail -30 luci-build.log
+            exit 1
+          fi
+          
+          echo "=== Checking APK files ==="
+          find bin -name "*phtunnel*.apk" -exec ls -lh {} \;
+          find bin -name "*luci-app-phtunnel*.apk" -exec ls -lh {} \;
+          
+          APK_COUNT=$(find bin -name "*.apk" | wc -l)
+          echo "Total APKs: $APK_COUNT"
+          
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "ERROR: No APKs generated"
+            exit 1
+          fi
+          
+          echo "Build completed"
+      
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: luci-apk
+          path: bin/*phtunnel*.apk bin/*luci-app-phtunnel*.apk
+      
+      - name: Create Release
+        if: success()
+        run: |
+          APK_COUNT=$(find bin -name "*.apk" | wc -l)
+          
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "ERROR: No APK files found"
+            exit 1
+          fi
+          
+          # Find all APK files
+          APK_FILES=$(find bin -name "*.apk" | head -10)
+          APK_SIZE=$(du -sh bin/*phtunnel*.apk | awk '{print $1}')
+          
+          echo "Found $APK_COUNT APK files:"
+          find bin -name "*.apk" -exec basename {} \;
+          
+          # Create release
+          RELEASE_TAG="luci-app-phtunnel-v1.0.0-r1"
+          
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Updating existing release"
+            gh release delete "$RELEASE_TAG"
+            gh release create "$RELEASE_TAG" --title "luci-app-phtunnel v1.0.0-r1" \
+              --notes "LuCI interface for PHTunnel v1.0.0 for OpenWrt 25.12.x"
+          else
+            echo "Creating new release"
+            gh release create "$RELEASE_TAG" --title "luci-app-phtunnel v1.0.0-r1" \
+              --notes "LuCI interface for PHTunnel v1.0.0 for OpenWrt 25.12.x"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
