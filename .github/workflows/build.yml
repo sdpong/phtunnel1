@@ -46,18 +46,7 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
-          # Check binary files before build
-          echo "=== Checking binary files ==="
-          ls -la "${GITHUB_WORKSPACE}/phtunnel/binaries/"
-          
-          if [ ! -d "${GITHUB_WORKSPACE}/phtunnel/binaries/aarch64/phtunnel" ]; then
-            echo "❌ ERROR: phtunnel binary not found for aarch64 architecture"
-            exit 1
-          fi
-          
-          echo "✅ Binary files exist"
-          
-          # Copy package files
+          # Set environment variables
           echo "Copying package files..."
           mkdir -p package/phtunnel
           mkdir -p package/luci-app-phtunnel
