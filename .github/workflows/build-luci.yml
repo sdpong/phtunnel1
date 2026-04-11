@@ -24,7 +24,7 @@ jobs:
           rm -f sdk.tar.zst
           
           # Setup SDK
-          mv openwrt-sdk-* openwrt-sdk
+          find . -maxdepth 1 -name "openwrt-sdk*" -type d -exec mv {} openwrt-sdk \;
           cd openwrt-sdk
           
           # Enable APK format
