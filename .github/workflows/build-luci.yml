@@ -17,14 +17,15 @@ jobs:
           echo "=== Building luci-app-phtunnel ==="
           
           # Download SDK
-          SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/qualcommax/ipq807x/openwrt-sdk-25.12.2-qualcommax-ipq807x_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
-          
-          curl -fL "$SDK_URL" -o sdk.tar.zst
+          curl -fL "https://downloads.openwrt.org/releases/25.12.2/targets/qualcommax/ipq807x/openwrt-sdk-25.12.2-qualcommax-ipq807x_gcc-14.3.0_musl.Linux-x86_64.tar.zst" -o sdk.tar.zst
           tar -xf sdk.tar.zst
           rm -f sdk.tar.zst
           
-          # Setup SDK
-          find . -maxdepth 1 -name "openwrt-sdk*" -type d -exec mv {} openwrt-sdk \;
+          # Rename SDK directory if needed
+          if [ -d openwrt-sdk-25.12.2* ]; then
+            mv openwrt-sdk-25.12.2* openwrt-sdk
+          fi
+          
           cd openwrt-sdk
           
           # Enable APK format
@@ -82,15 +83,15 @@ jobs:
       - name: Create Release
         if: success()
         run: |
-          set -x
-          
-          echo "=== Creating luci-app-phtunnel Release ==="
-          
-          APK_FILE=$(find bin -name "luci-app-phtunnel*.apk" | head -1)
-          APK_SIZE=$(ls -lh "$APK_FILE" | awk '{print $5}')
-          
-          # Create release notes
-          cat > release_notes.md << 'EOF'
+            set -x
+            
+            echo "=== Creating luci-app-phtunnel Release ==="
+            
+            APK_FILE=$(find bin -name "luci-app-phtunnel*.apk" | head -1)
+            APK_SIZE=$(ls -lh "$APK_FILE" | awk '{print $5}')
+            
+            # Create release notes
+            cat > release_notes.md << 'EOF'
           # luci-app-phtunnel v1.0.0 for OpenWrt 25.12.x
           
           ## Successfully Built Architecture
