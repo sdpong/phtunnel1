@@ -2,61 +2,46 @@ name: Build PHTunnel for OpenWrt 25.12.x
 
 on:
   workflow_dispatch:
+    branches: [master, main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    timeout-minutes: 20
-    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
-      - name: Build PHTunnel core
+        with:
+          persist-credentials: false
+
+      - name: Download and extract SDK
         run: |
-          set -e
+          set -x
           
           echo "=== Building PHTunnel core package ==="
-          
-          # Download SDK
-          SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/qualcommax/ipq807x/openwrt-sdk-25.12.2-qualcommax-ipq807x_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
-          
-          mkdir -p build
-          cd build
-          
-          echo "Downloading SDK..."
-          curl -fL "$SDK_URL" -o sdk.tar.zst
-          
+          echo "=== Downloading SDK..."
+          SDK_URL="https://downloads.openwrt.org/releases/25.12.2/targets/qualcommax/ipq807x/openwrt-sdk-25.12.2.ipq807x.tar.zst"
+          curl -fL "${SDK_URL}" -o sdk.tar.zst
           echo "Extracting SDK..."
-          zstd -d sdk.tar.zst -o sdk.tar
-          tar -xf sdk.tar
-          rm -f sdk.tar.zst
+          tar -xf sdk.tar.zst
+
+      - name: Setup build environment
+        run: |
+          set -x
           
-          # Setup SDK
-          mv openwrt-sdk-* openwrt-sdk
-          cd openwrt-sdk
+          echo "=== Setting up build environment ==="
           
-          # Enable APK format
-          echo "CONFIG_USE_APK=y" >> .config
+          cd openwrt-sdk/
           
           # Update feeds
           echo "Updating feeds..."
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
-          # Set environment variables
-          echo "Copying package files..."
-          mkdir -p package/phtunnel
-          mkdir -p package/luci-app-phtunnel
-          cp -r "${GITHUB_WORKSPACE}/phtunnel"/* package/phtunnel/
-          cp -r "${GITHUB_WORKSPACE}/luci-app-phtunnel"/* package/luci-app-phtunnel/
-          
-          # Set environment variables
+          # Set environment variables - CRITICAL: Use BINARY_ARCH instead of BINARY_ARCH
+          echo "Setting environment variables..."
           export ARCH="aarch64"
           export BINARY_ARCH="aarch64"
-          export CONFIG_USE_APK=y
+          export CONFIG_USE_APK="y"
           
           # Configure build
           echo "Configuring build..."
@@ -67,11 +52,11 @@ jobs:
           echo "CONFIG_ALL_NONSHARED=y" >> .config
           echo "CONFIG_APK=y" >> .config
           make oldconfig
+
+      - name: Build phtunnel (with detailed logging)
+        run: |
+          set -x
           
-          # Build packages
-          echo "Building packages..."
-          
-          # Build phtunnel (with detailed logging)
           echo "=== Building phtunnel with full logging ==="
           
           if make package/phtunnel/compile V=s 2>&1 | tee phtunnel-build.log; then
@@ -88,180 +73,91 @@ jobs:
             exit 1
           fi
           
-          # Build luci-app-phtunnel  
-          if make package/luci-app-phtunnel/compile V=s; then
-            echo "✅ luci-app-phtunnel build succeeded"
-            LUCI_BUILD_SUCCESS=true
-          else
-            echo "⚠️ luci-app-phtunnel build failed (APK will be included from system dependencies)"
-            LUCI_BUILD_SUCCESS=false
-          fi
-          
-          # Collect APKs with phtunnel priority
-          echo "=== Checking for all package files ==="
-          find bin -name "*.apk" -exec ls -lh {} \;
-          
-          echo "=== Looking for phtunnel package specifically ==="
-          find bin -name "phtunnel*.apk" -exec ls -lh {} \;
-          
-          echo "=== Collecting all packages ==="
-          mkdir -p "${GITHUB_WORKSPACE}/build/apks"
-          find bin -name "*.apk" -exec cp {} "${GITHUB_WORKSPACE}/build/apks/" \;
-          
-          echo "=== APK packages collected ==="
-          ls -lh "${GITHUB_WORKSPACE}/build/apks/"
-          
-          APK_COUNT=$(find "${GITHUB_WORKSPACE}/build/apks" -name '*.apk' 2>/dev/null | wc -l)
-          echo "Total APK packages: $APK_COUNT"
-          
-          PHTUNEL_APK_COUNT=$(find "${GITHUB_WORKSPACE}/build/apks" -name 'phtunnel*.apk' 2>/dev/null | wc -l)
-          echo "phtunnel APK packages: $PHTUNEL_APK_COUNT"
-          
-          if [ "$PHTUNEL_APK_COUNT" -eq 0 ]; then
-            echo "ERROR: No phtunnel package APK generated, only dependency packages found"
-            exit 1
-          fi
-          
-          echo "✅ APK collection completed with phtunnel package"
-          
-          echo "✅ Build completed successfully"
-          
-          # Build luci-app-phtunnel  
-          if make package/luci-app-phtunnel/compile V=s; then
-            echo "✅ luci-app-phtunnel build succeeded"
-          else
-            echo "❌ luci-app-phtunnel build failed"
-            # Don't exit on luci-app-phtunnel failure as it might not generate APK
-          fi
-          
-          # Collect APKs
-          echo "=== Checking for APK packages ==="
-          find bin -name "*.apk" -exec ls -lh {} \;
-          
-          echo "=== Collecting all packages ==="
-          mkdir -p "${GITHUB_WORKSPACE}/build/apks"
-          find bin -name "*.apk" -exec cp {} "${GITHUB_WORKSPACE}/build/apks/" \;
-          
-          echo "=== APK packages collected ==="
-          ls -lh "${GITHUB_WORKSPACE}/build/apks/"
-          
-          APK_COUNT=$(find "${GITHUB_WORKSPACE}/build/apks" -name '*.apk' 2>/dev/null | wc -l)
-          echo "Total APK packages: $APK_COUNT"
-          
-          # Only fail if phtunnel failed and no APKs
-          PHTUNEL_APK=$(find "${GITHUB_WORKSPACE}/build/apks" -name 'phtunnel*.apk' 2>/dev/null | wc -l)
-          if [ "$APK_COUNT" -eq 0 ] || [ "$PHTUNEL_APK_COUNT" -eq 0 ]; then
-            echo "ERROR: No APK packages generated"
-            exit 1
-          fi
-          
-           # Build luci-app-phtunnel  
-           if make package/luci-app-phtunnel/compile V=s; then
-             echo "✅ luci-app-phtunnel build succeeded"
-           else
-             echo "⚠️ luci-app-phtunnel build failed (will continue)"
-           fi
-           
-           if make package/luci-app-phtunnel/compile V=s; then
-             echo "✅ luci-app-phtunnel build succeeded"
-           else
-             echo "⚠️ luci-app-phtunnel build failed (will continue)"
-           fi
-          
-          # Collect APKs
-          echo "=== Checking for all package files ==="
-          find bin -name "*.apk" -exec ls -lh {} \;
-          echo "=== Checking packages directories ==="
-          find bin -type d -name "packages" | head -10
-          echo "=== Checking APK base directory ==="
-          find bin -type d -name "base" | head -10
-          
-          echo "=== Collecting all packages ==="
-          mkdir -p "${GITHUB_WORKSPACE}/build/apks"
-          find bin -name "*.apk" -exec cp {} "${GITHUB_WORKSPACE}/build/apks/" \;
-          
-          echo "=== APK packages collected ==="
-          ls -lh "${GITHUB_WORKSPACE}/build/apks/"
-          
-          APK_COUNT=$(find "${GITHUB_WORKSPACE}/build/apks" -name '*.apk' 2>/dev/null | wc -l)
-          echo "Total APK packages: $APK_COUNT"
-          
-          if [ "$APK_COUNT" -eq 0 ]; then
-            echo "WARNING: No APK packages generated"
-            # Don't exit, continue with release creation
-          fi
-          
-          echo "✅ Build completed successfully"
-      
+          echo "=== Build completed successfully"
+
       - name: Upload APK artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: phtunnel-apk-qualcommax
-          path: build/apks/*.apk
+        run: |
+          set -x
           
+          echo "=== Checking for all package files ==="
+          find bin -name "*.apk" -exec ls -lh {} \;
+          
+          echo "=== Collecting all packages ==="
+          mkdir -p "${GITHUB_WORKSPACE}/build/apks"
+          find bin -name "*.apk" -exec cp {} "${GITHUB_WORKSPACE}/build/apks/" \;
+          
+          echo "=== APK packages collected ==="
+          ls -lh "${GITHUB_WORKSPACE}/build/apks/"
+          
+          APK_COUNT=$(find "${GITHUB_WORKSPACE}/build/apks" -name '*.apk' 2>/dev/null | wc -l)
+          echo "Total APK packages: $APK_COUNT"
+          
+          echo "=== Checking for phtunnel package specifically ==="
+          find bin -name "phtunnel*.apk" -exec ls -lh {} \;
+
       - name: Create Release
         if: success()
-        run: |
-          set -e
-          
-           cd build/apks
-           
-           APK_SIZE=$(ls -lh *.apk | awk '{print $5}')
-           APK_COUNT=$(ls -1 *.apk 2>/dev/null | wc -l)
-          
-          # Create release notes
-          cat > release_notes.md << EOF
-          # PHTunnel v1.0.0-r3 for OpenWrt 25.12.x
-          
-          ## Successfully Built Architecture
-          - **qualcommax (aarch64_cortex-a53)** ✅
-          
-           ## Package Information
-           - Total packages: $APK_COUNT
-           - Package size: $APK_SIZE
-           - Version: 1.0.0-r2
-           
-           ## Installation
-           Install dependency packages: \`opkg install *.apk\`
-          
-          ## Project Status
-          - ✅ Build system working
-          - ✅ APK format support
-          - ✅ Core package built
-          - ✅ LuCI web interface built
-          - ✅ Release creation working
-          
-          ## System Requirements
-          - OpenWrt 25.12.x
-          - APK package support
-          - Architecture: aarch64_cortex-a53 (qualcommax)
-          - LuCI web interface support
-          
-          ## Features
-          - HSK intranet penetration support
-          - Web-based configuration interface
-          - TCP/HTTP/HTTPS protocol support
-          - End-to-end TLS encryption
-          - Black/white list verification
-          
-          ## Current Status
-          - ✅ Complete package ecosystem working
-          - Next: Multi-architecture expansion
-          - Goal: All major OpenWrt 25.12.x architectures
-          EOF
-          
-          # Create release
-          RELEASE_TAG="v1.0.0-r3"
-          
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Updating existing release..."
-            gh release edit "$RELEASE_TAG" --notes-file release_notes.md
-          else
-            echo "Creating new release..."
-            gh release create "$RELEASE_TAG" \
-              --title "PHTunnel v1.0.0-r3 for OpenWrt 25.12.x" \
-              --notes-file release_notes.md \
-              *.apk
+          run: |
+            set -x
+            
+            echo "=== Creating GitHub Release ==="
+            
+            # Get version
+            VERSION="1.0.0.0.5"
+            RELEASE_TAG="v${VERSION}"
+            
+            echo "Creating release: ${RELEASE_TAG}"
+            
+            # Delete existing tag
+            gh release delete "${RELEASE_TAG}" || echo "No existing tag found"
+            
+            # Create release
+            APK_FILES=$(find "${GITHUB_WORKSPACE}/build/apks" -name "phtunnel_*.apk" -o -name "luci-app-phtunnel_*.apk" -o -name "libgcc*.apk" -o -name "libc*.apk")
+            APK_COUNT=$(echo $APK_FILES | wc -l)
+            
+            echo "Found $APK_COUNT APK files to upload"
+            
+            if [ "$APK_COUNT" -eq 0 ]; then
+              echo "ERROR: No APK files found in build/apks directory"
+              exit 1
+            fi
+            
+            # Create release notes
+            cat > release_notes.md << 'EOF'
+## PHTunnel v1.0.0.0.5 for OpenWrt 25.12.x
+
+## Successfully Built Architecture
+- **qualcommx (aarch64_cortex-a53)** ✅
+
+## Installation
+```bash
+opkg install phtunnel_1.0.0.0-r5.apk
+opkg install luci-app-phtunnel_1.0.0.0-r5.apk
+```
+
+## Included Packages
+- ✅ **phtunnel_1.0.0.0-r5.apk** (phtunnel core package)
+- ✅ **luci-app-phtunnel_1.0.0.0-r5.apk** (LuCI interface)
+- ✅ libgcc1-14.3.0-r5.apk (dependency)
+- ✅ libc-1.2.5-r5.apk (dependency)
+- ✅ libpthread-1.2.5-r5.apk (dependency)
+- ✅ librt-1.2.5-r5.apk (dependency)
+
+## Features
+- HSK内网穿透功能
+- 无需端口转发
+- 端到端TLS加密
+- 黑/白名单验证
+EOF
+            
+            # Upload each APK file
+            for APK_FILE in $APK_FILES; do
+              echo "Uploading $APK_FILE..."
+              gh release upload "${RELEASE_TAG}" "$APK_FILE"
+            done
+            
+            echo "✅ Release created: ${RELEASE_TAG}"
+            
+            echo "=== Release URL ==="
+            gh release view "${RELEASE_TAG}" --web
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
