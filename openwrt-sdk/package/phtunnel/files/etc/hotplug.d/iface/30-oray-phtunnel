@@ -1,0 +1,6 @@
+#!/bin/sh
+
+[ "$INTERFACE" = "wan" ] && [ "$ACTION" = "ifup" ] && {
+	logger -t phtunnel 'wan interface up, restarting phtunnel'
+	/etc/init.d/phtunnel restart
+}

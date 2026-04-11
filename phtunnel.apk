@@ -1,0 +1,10 @@
+Package: phtunnel
+Version: 1.0.0-r2
+Description: HSK intranet penetration tool
+Architecture: aarch64_cortex-a53
+Section: net
+Maintainer: Oray <developer@oray.com>
+License: GPL-2.0-only
+Installed-Size: 650K
+Data:
+  usr/sbin/phtunnel | sha256sum | cut -d' ' ' | awk '{print $1 "  "  " $2 "}'

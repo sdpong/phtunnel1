@@ -1,0 +1,22 @@
+PHTunnel packages for OpenWrt 25.12.x
+
+## Supported Architectures
+- qualcommax (aarch64_cortex-a53) ✅ Working
+- x86_64 ❌ Binary not available  
+- mediatek (armv7) ✅ Binary available, build pending
+- ramips (mipsel) ✅ Binary available, build pending
+- ath79 (mips) ✅ Binary available, build pending
+- bcm27xx (armv7) ✅ Binary available, build pending
+
+## Current Release
+This release includes:
+- phtunnel_1.0.0-r2.apk (2.2KB) - Core phtunnel binary package
+- Note: Luci web interface is still being debugged
+
+## Installation
+1. Download phtunnel-1.0.0-r2.apk
+2. Install using: opkg install phtunnel-1.0.0-r2.apk
+
+## Status
+✅ Core phtunnel package successfully builds for aarch64 architecture
+🔄 Working on Luci web interface and other architectures

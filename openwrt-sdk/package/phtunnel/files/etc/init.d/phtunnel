@@ -1,0 +1,71 @@
+#!/bin/sh /etc/rc.common
+
+USE_PROCD=1
+START=65
+STOP=65
+
+start_service() {
+	local enabled
+	local config_file
+	local log_path
+	local app_id
+	local app_key
+	local server_addr
+	local pid_file
+	local log_dir_path
+	local cmd
+
+	config_load phtunnel
+	config_get_bool enabled base enabled 0
+	[ "$enabled" -eq 0 ] && {
+		echo 'phtunnel is not enabled'
+		return 1
+	}
+
+	config_get config_file base config_file '/etc/phtunnel.json'
+	config_get app_id base app_id ''
+	config_get app_key base app_key ''
+	config_get server_addr base server 'https://hsk-embed.oray.com'
+	config_get pid_file base pid_file '/tmp/phtunnel.pid'
+	config_get log_path log path '/var/log/oraybox/phtunnel.log'
+
+	log_dir_path="${log_path%/*}"
+	[ ! -d "$log_dir_path" ] && mkdir -p "$log_dir_path"
+
+	cmd="/usr/sbin/phtunnel -R 100 -c $config_file -l $log_path --rpc -p $pid_file"
+	[ -n "$app_id" ] && cmd="$cmd --appid $app_id"
+	[ -n "$app_key" ] && cmd="$cmd --appkey $app_key"
+	[ -n "$server_addr" ] && cmd="$cmd -s $server_addr"
+
+	procd_open_instance
+	procd_set_param command $cmd
+	procd_set_param respawn ${respawn_threshold:-3600} ${respawn_timeout:-5} ${respawn_retry:-5}
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_set_param pidfile "$pid_file"
+
+	# 向下兼容：procd_add_jail 只在 OpenWrt 18.06+ 支持
+	if type procd_add_jail >/dev/null 2>&1; then
+		procd_add_jail phtunnel log
+		procd_set_jail_mount "$config_file"
+		procd_set_jail_mount "$log_path"
+		procd_set_jail_mount_rw /var/run
+	fi
+
+	procd_close_instance
+}
+
+stop_service() {
+	echo 'stopping phtunnel...'
+	service_stop /usr/sbin/phtunnel
+}
+
+service_triggers() {
+	procd_add_reload_trigger "phtunnel"
+}
+
+reload_service() {
+	echo 'reloading phtunnel...'
+	stop
+	start
+}

@@ -1,0 +1,15 @@
+Package: luci-app-phtunnel
+Version: 1.0.0-r1
+Description: LuCI interface for PHTunnel
+Architecture: aarch64_cortex-a53
+Section: net
+Maintainer: Oray <developer@oray.com>
+License: GPL-2.0-only
+Installed-Size: 20K
+Data:
+ usr/lib/lua/luci/controller/oray/phtunnel.lua | sha256sum | cut -d ' ' ' | awk '{print "  "}'
+ usr/lib/lua/luci/model/cbi/oray/phtunnel_setup.lua | sha256sum | cut -d ' ' | awk '{print "  "}'
+ usr/lib/lua/luci/view/oray/phtunnel_status.htm | sha256sum | cut -d ' ' | awk '{print "  "}'
+ usr/lib/luci/luci/view/oray/phtunnel_log_off.htm | sha256sum | cut -d ' ' | awk '{print " "}'
+ usr/lib/luci/lib/luci/view/oray/phtunnel_log.htm | sha256sum | cut -d ' ' ' | awk '{print " "}'
+ usr/lib/lua/luci/view/oray/phtunnel_inner_status.htm | sha256sum | cut -d ' ' ' | awk '{print " "}'
