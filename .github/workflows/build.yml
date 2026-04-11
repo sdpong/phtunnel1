@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    timeout-minutes: 20
     
     steps:
       - name: Checkout
@@ -45,6 +46,17 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
+          # Check binary files before build
+          echo "=== Checking binary files ==="
+          ls -la "${GITHUB_WORKSPACE}/phtunnel/binaries/"
+          
+          if [ ! -d "${GITHUB_WORKSPACE}/phtunnel/binaries/aarch64/phtunnel" ]; then
+            echo "❌ ERROR: phtunnel binary not found for aarch64 architecture"
+            exit 1
+          fi
+          
+          echo "✅ Binary files exist"
+          
           # Copy package files
           echo "Copying package files..."
           mkdir -p package/phtunnel
@@ -70,13 +82,21 @@ jobs:
           # Build packages
           echo "Building packages..."
           
-          # Build phtunnel (use existing working Makefile)
-          if make package/phtunnel/compile V=s; then
+          # Build phtunnel (with detailed logging)
+          echo "=== Building phtunnel with full logging ==="
+          
+          if make package/phtunnel/compile V=s 2>&1 | tee phtunnel-build.log; then
             echo "✅ phtunnel build succeeded"
-            PHTUNEL_BUILD_SUCCESS=true
+            echo "=== Build log summary ==="
+            echo "Last 20 lines of build log:"
+            tail -20 phtunnel-build.log
           else
             echo "❌ phtunnel build failed"
-            PHTUNEL_BUILD_SUCCESS=false
+            echo "=== Build log summary ==="
+            echo "Last 20 lines of build log:"
+            tail -20 phtunnel-build.log
+            cat phtunnel-build.log | grep -A 10 -B 5 "ERROR\|error\|No binary\|missing\|undefined" || true
+            exit 1
           fi
           
           # Build luci-app-phtunnel  
@@ -88,9 +108,12 @@ jobs:
             LUCI_BUILD_SUCCESS=false
           fi
           
-          # Collect APKs
+          # Collect APKs with phtunnel priority
           echo "=== Checking for all package files ==="
           find bin -name "*.apk" -exec ls -lh {} \;
+          
+          echo "=== Looking for phtunnel package specifically ==="
+          find bin -name "phtunnel*.apk" -exec ls -lh {} \;
           
           echo "=== Collecting all packages ==="
           mkdir -p "${GITHUB_WORKSPACE}/build/apks"
@@ -102,11 +125,15 @@ jobs:
           APK_COUNT=$(find "${GITHUB_WORKSPACE}/build/apks" -name '*.apk' 2>/dev/null | wc -l)
           echo "Total APK packages: $APK_COUNT"
           
-          # Only fail if no APK packages generated
-          if [ "$APK_COUNT" -eq 0 ]; then
-            echo "ERROR: No APK packages generated"
+          PHTUNEL_APK_COUNT=$(find "${GITHUB_WORKSPACE}/build/apks" -name 'phtunnel*.apk' 2>/dev/null | wc -l)
+          echo "phtunnel APK packages: $PHTUNEL_APK_COUNT"
+          
+          if [ "$PHTUNEL_APK_COUNT" -eq 0 ]; then
+            echo "ERROR: No phtunnel package APK generated, only dependency packages found"
             exit 1
           fi
+          
+          echo "✅ APK collection completed with phtunnel package"
           
           echo "✅ Build completed successfully"
           
