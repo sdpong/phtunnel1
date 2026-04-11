@@ -1,0 +1,185 @@
+name: Build luci-app-phtunnel Fixed
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Download and extract SDK
+        run: |
+          set -x
+          
+          echo "=== Building luci-app-phtunnel ==="
+          
+          # Download SDK
+          curl -fL "https://downloads.openwrt.org/releases/25.12.2/targets/qualcommax/ipq807x/openwrt-sdk-25.12.2.ipq807x.tar.zst" -o sdk.tar.zst
+          tar -xf sdk.tar.zst
+          rm -f sdk.tar.zst
+          
+          # Setup SDK
+          mv openwrt-sdk-* openwrt-sdk
+          cd openwrt-sdk
+          
+          # Configure build - FIXED: add proper config steps
+          echo "=== Configuring build ==="
+          
+          # 1. Copy package files
+          mkdir -p package/luci-app-phtunnel
+          cp -r "${GITHUB_WORKSPACE}/luci-app-phtunnel"/* package/luci-app-phtunnel/
+          
+          # 2. Set APK config
+          echo "CONFIG_USE_APK=y" >> .config
+          
+          # 3. Install LuCI dependencies
+          echo "CONFIG_PACKAGE_luci-lib-base=y" >> .config
+          echo "CONFIG_PACKAGE_luci-lib-ip=y" >> .config
+          echo "CONFIG_PACKAGE_luci-lib-ipkg=y" >> .config
+          
+          # 4. Configure build
+          echo "=== Running make defconfig ==="
+          make defconfig
+          
+          # 5. Enable luci-app-phtunnel package
+          echo "=== Enabling luci-app-phtunnel ==="
+          echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
+          
+          # 6. Configure APK generation
+          echo "=== Configuring APK generation ==="
+          echo "CONFIG_USE_APK=y" >> .config
+          
+          # 7. Final oldconfig
+          echo "=== Running make oldconfig ==="
+          make oldconfig
+          
+          echo "✅ Configuration completed"
+          
+          # 8. Clean and rebuild
+          echo "=== Clean and rebuild ==="
+          make clean
+          
+          # 9. Reconfigure
+          make defconfig
+          echo "CONFIG_PACKAGE_luci-app-phtunnel=y" >> .config
+          make oldconfig
+          
+          echo "✅ Build preparation completed"
+      
+      - name: Build luci-app-phtunnel
+        run: |
+          set -x
+          
+          echo "=== Building luci-app-phtunnel with APK generation ==="
+          
+          cd openwrt-sdk
+          
+          # Build with verbose output
+          if make package/luci-app-phtunnel/compile V=s 2>&1 | tee luci-build.log; then
+            echo "✅ luci-app-phtunnel build succeeded"
+          else
+            echo "❌ luci-app-phtunnel build failed"
+            cat luci-build.log | tail -30
+            exit 1
+          fi
+          
+          # Find and check APKs
+          echo "=== Checking for luci-app-phtunnel APKs ==="
+          find bin -name "luci-app-phtunnel*.apk" -exec ls -lh {} \;
+          
+          APK_COUNT=$(find bin -name "luci-app-phtunnel*.apk" | wc -l)
+          echo "Total luci-app-phtunnel APKs: $APK_COUNT"
+          
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "ERROR: No luci-app-phtunnel APK generated"
+            exit 1
+          fi
+          
+          echo "✅ luci-app-phtunnel build completed"
+      
+      - name: Upload APK artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: luci-app-phtunnel-apk
+          path: bin/*luci-app-phtunnel*.apk
+          
+      - name: Create Release
+        if: success()
+        run: |
+            set -x
+            echo "=== Creating luci-app-phtunnel Release ==="
+            
+            # Find APK files
+            APK_FILES=$(find bin -name "luci-app-phtunnel*.apk" | head -1)
+            
+            if [ -z "$APK_FILES" ]; then
+              echo "ERROR: No APK files found"
+              exit 1
+            fi
+            
+            # Create release notes
+            cat > release_notes.md << 'EOF'
+          # luci-app-phtunnel v1.0.0-r2 for OpenWrt 25.12.x
+          
+          ## Successfully Built Architecture
+          - **qualcommax (aarch64_cortex-a53)** ✅
+          
+          ## Installation
+          ```bash
+          opkg install luci-app-phtunnel_1.0.0-r2.apk
+          ```
+          
+          ## Features
+          - Web-based PHTunnel configuration interface
+          - LuCI integration
+          - Support for HSK intranet penetration configuration
+          
+          ## System Requirements
+          - OpenWrt 25.12.x
+          - LuCI web interface
+          - Architecture: aarch64_cortex-a53 (qualcommax)
+          - Requires: PHTunnel core package
+          
+          ## Project Status
+          - ✅ LuCI interface build successful
+          - ✅ APK format support
+          - ✅ Web configuration interface
+          - ✅ GitHub Actions automation
+          
+          ## Included Packages
+          - ✅ **luci-app-phtunnel_1.0.0-r2.apk** (LuCI interface)
+          
+          ## Current Status
+          - ✅ Single architecture verification complete
+          - Next: Multi-architecture expansion
+          - Goal: All major OpenWrt 25.12.x architectures
+          
+          ## Installation
+          ```bash
+          # Install PHTunnel core first:
+          opkg install phtunnel_1.0.0-r1.apk
+          
+          # Then install LuCI interface:
+          opkg install luci-app-phtunnel_1.0.0-r2.apk
+          ```
+          
+          EOF
+          
+          # Create release
+          RELEASE_TAG="luci-app-phtunnel-v1.0.0-r2"
+          
+          # Delete existing release
+          gh release delete "${RELEASE_TAG}" || echo "No existing tag found"
+          
+          # Create release
+          gh release create "${RELEASE_TAG}" \
+            --title "luci-app-phtunnel v1.0.0-r2 for OpenWrt 25.12.x" \
+            --notes-file release_notes.md \
+            "$APK_FILE"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
