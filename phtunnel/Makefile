@@ -11,7 +11,6 @@ PKG_CATEGORY:=Network
 PKG_URL:=https://github.com/oray/phtunnel
 PKG_MAINTAINER:=Oray <developer@oray.com>
 PKG_LICENSE:=GPL-2.0-only
-PKG_DEPENDS:=+libc +libpthread +librt
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -28,20 +27,7 @@ define Package/phtunnel/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
 	$(INSTALL_DIR) $(1)/usr/sbin/
-endef
-
-define Package/phtunnel/postinst
-#!/bin/sh
-	/etc/init.d/phtunnel enable
-	/etc/init.d/phtunnel restart
-	exit 0
-endef
-
-define Package/phtunnel/prerm
-#!/bin/sh
-	/etc/init.d/phtunnel disable
-	/etc/init.d/phtunnel stop
-	exit 0
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/phtunnel $(1)/usr/sbin/
 endef
 
 define Build/Prepare
@@ -49,16 +35,17 @@ define Build/Prepare
 endef
 
 define Build/Compile
-	if [ -n "$(BINARY_ARCH)" ]; then \
-		if [ -f ./binaries/$(BINARY_ARCH)/phtunnel ]; then \
-			cp ./binaries/$(BINARY_ARCH)/phtunnel $(PKG_BUILD_DIR)/phtunnel; \
-		else \
-			echo "ERROR: No binary found for architecture $(BINARY_ARCH)"; \
-			exit 1; \
-		fi \
-	else \
-		echo "ERROR: BINARY_ARCH environment variable not set"; \
-		exit 1; \
+	# Direct binary copying without Makefile compilation
+	if [ -n "$(BINARY_ARCH)" ]; then
+		if [ -f "./binaries/$(BINARY_ARCH)/phtunnel" ]; then
+			cp ./binaries/$(BINARY_ARCH)/phtunnel $(PKG_BUILD_DIR)/phtunnel;
+		else
+			echo "ERROR: No binary found for architecture $(BINARY_ARCH)";
+			exit 1;
+		fi
+	else
+		echo "ERROR: BINARY_ARCH environment variable not set";
+		exit 1;
 	fi
 	chmod +x $(PKG_BUILD_DIR)/phtunnel
 endef
