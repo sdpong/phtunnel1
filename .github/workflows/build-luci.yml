@@ -35,9 +35,9 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
-          # Copy package files
+           # Copy package files
           mkdir -p package/luci-app-phtunnel
-          cp -r "${GITHUB_WORKSPACE}/luci-app-phtunnel"/* package/luci-app-phtunnel/
+          cp -r luci-app-phtunnel/* package/luci-app-phtunnel/
           
           # Configure build
           echo "Configuring build..."
