@@ -2,10 +2,10 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=phtunnel
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=4
+PKG_RELEASE:=1
 
 PKG_TITLE:=PHTunnel - HSK Intranet Penetration Tool
-PKG_DESCRIPTION:=HSK intranet penetration tool for OpenWrt routers, enabling secure remote access without port forwarding
+PKG_DESCRIPTION:=HSK intranet penetration tool for OpenWrt routers
 PKG_SECTION:=net
 PKG_CATEGORY:=Network
 PKG_URL:=https://github.com/oray/phtunnel
@@ -14,20 +14,20 @@ PKG_LICENSE:=GPL-2.0-only
 
 include $(INCLUDE_DIR)/package.mk
 
-define Package/phtunnel/install
-	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
-	$(INSTALL_DIR) $(1)/usr/sbin/
-	$(INSTALL_BIN) ./binaries/$(BINARY_ARCH)/phtunnel $(1)/usr/sbin/phtunnel
-endef
-
 define Package/phtunnel/conffiles
 	/etc/config/phtunnel
 endef
 
 define Package/phtunnel/description
-	PHTunnel provides HSK intranet penetration functionality for OpenWrt routers, enabling secure remote access without port forwarding.
+	PHTunnel provides HSK intranet penetration functionality for OpenWrt routers.
+endef
+
+define Package/phtunnel/install
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
+	$(INSTALL_DIR) $(1)/usr/sbin/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/phtunnel $(1)/usr/sbin/
 endef
 
 define Package/phtunnel/postinst
@@ -37,19 +37,12 @@ define Package/phtunnel/postinst
 	exit 0
 endef
 
-define Package/phtunnel/prerm
-#!/bin/sh
-	/etc/init.d/pphtunnel disable
-	/etc/init.d/phtunnel stop
-	exit 0
-endef
-
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
 endef
 
 define Build/Compile
-	# Direct static binary copy to avoid Makefile compilation issues
+	# Simple binary copy without complex dependency handling
 	if [ -n "$(BINARY_ARCH)" ]; then \
 		if [ -f ./binaries/$(BINARY_ARCH)/phtunnel ]; then \
 			cp ./binaries/$(BINARY_ARCH)/phtunnel $(PKG_BUILD_DIR)/phtunnel; \
