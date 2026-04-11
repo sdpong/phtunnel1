@@ -14,6 +14,14 @@ PKG_LICENSE:=GPL-2.0-only
 
 include $(INCLUDE_DIR)/package.mk
 
+define Package/phtunnel/install
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
+	$(INSTALL_DIR) $(1)/usr/sbin/
+	$(INSTALL_BIN) ./binaries/$(BINARY_ARCH)/phtunnel $(1)/usr/sbin/phtunnel
+endef
+
 define Package/phtunnel/conffiles
 	/etc/config/phtunnel
 endef
@@ -22,12 +30,18 @@ define Package/phtunnel/description
 	PHTunnel provides HSK intranet penetration functionality for OpenWrt routers, enabling secure remote access without port forwarding.
 endef
 
-define Package/phtunnel/install
-	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
-	$(INSTALL_DIR) $(1)/usr/sbin/
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/phtunnel $(1)/usr/sbin/
+define Package/phtunnel/postinst
+#!/bin/sh
+	/etc/init.d/phtunnel enable
+	/etc/init.d/phtunnel restart
+	exit 0
+endef
+
+define Package/phtunnel/prerm
+#!/bin/sh
+	/etc/init.d/pphtunnel disable
+	/etc/init.d/phtunnel stop
+	exit 0
 endef
 
 define Build/Prepare
@@ -35,23 +49,19 @@ define Build/Prepare
 endef
 
 define Build/Compile
-	# Direct binary copying without Makefile compilation
-	if [ -n "$(BINARY_ARCH)" ]; then
-		if [ -f "./binaries/$(BINARY_ARCH)/phtunnel" ]; then
-			cp ./binaries/$(BINARY_ARCH)/phtunnel $(PKG_BUILD_DIR)/phtunnel;
-		else
-			echo "ERROR: No binary found for architecture $(BINARY_ARCH)";
-			exit 1;
-		fi
-	else
-		echo "ERROR: BINARY_ARCH environment variable not set";
-		exit 1;
+	# Direct static binary copy to avoid Makefile compilation issues
+	if [ -n "$(BINARY_ARCH)" ]; then \
+		if [ -f ./binaries/$(BINARY_ARCH)/phtunnel ]; then \
+			cp ./binaries/$(BINARY_ARCH)/phtunnel $(PKG_BUILD_DIR)/phtunnel; \
+		else \
+			echo "ERROR: No binary found for architecture $(BINARY_ARCH)"; \
+			exit 1; \
+		fi \
+	else \
+		echo "ERROR: BINARY_ARCH environment variable not set"; \
+		exit 1; \
 	fi
 	chmod +x $(PKG_BUILD_DIR)/phtunnel
-endef
-
-define Build/InstallDev
-	$(INSTALL_DIR) $(1)/usr/sbin/
 endef
 
 $(eval $(call BuildPackage,phtunnel))
